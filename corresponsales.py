@@ -43,15 +43,11 @@ def cargar_datos_locales():
                     cols[i] = f"{col}.{count}"
         df.columns = cols
 
-        # --- LIMPIEZA DE COLUMNAS NUMÉRICAS (ELIMINA EL VALUEERROR) ---
-        # Buscamos columnas que parezcan de transacciones o dinero
+        # LIMPIEZA DE COLUMNAS NUMÉRICAS
         for col in df.columns:
-            # Si el nombre tiene "TX", "2025", "2026", "Transa" o "$"
             if any(x in col.upper() for x in ["TX", "2025", "2026", "TRANSA", "$"]):
                 if df[col].dtype == 'object':
-                    # Quitamos símbolos de moneda, comas y espacios
                     df[col] = df[col].astype(str).str.replace('$', '', regex=False).str.replace(',', '', regex=False).str.strip()
-                # Convertimos a número. Lo que no sea número se vuelve 0 (NaN -> 0)
                 df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
             
         return df
@@ -91,4 +87,34 @@ if df is not None:
     with tab1:
         st.subheader(f"📍 Listado: {ciudad_sel}")
         m1, m2 = st.columns(2)
-        m1.metric("Puntos", f"{len(df_filtrado
+        
+        # Corregido: Cierre de paréntesis y formato
+        m1.metric("Puntos Encontrados", f"{len(df_filtrado):,}")
+        
+        suma_tx = float(df_filtrado[col_tx_total].sum())
+        m2.metric("TX Totales", f"{suma_tx:,.0f}")
+        
+        st.dataframe(df_filtrado, use_container_width=True, hide_index=True)
+
+    with tab2:
+        st.subheader("📈 Evolución de Transacciones")
+        meses = [c for c in cols if any(m in c.upper() for m in ["JUL", "AGO", "SEP", "OCT", "NOV", "DIC", "ENE"])]
+        if meses:
+            df_t = df_filtrado[meses].sum().reset_index()
+            df_t.columns = ["Mes", "Total TX"]
+            fig = px.line(df_t, x="Mes", y="Total TX", markers=True, color_discrete_sequence=["#0033a0"])
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info("No se encontraron columnas de meses para la tendencia.")
+
+    with tab3:
+        st.subheader("🚨 Alertas de Gestión")
+        df_al = df_filtrado[df_filtrado[col_tx_total] == 0].copy()
+        if not df_al.empty:
+            st.warning(f"Hay {len(df_al)} puntos con 0 transacciones.")
+            st.dataframe(df_al[[col_esp, col_ciudad, col_dir, col_tx_total]], use_container_width=True)
+        else:
+            st.success("✅ No se detectan puntos inactivos en esta selección.")
+
+else:
+    st.info("📢 Sube el archivo 'datos_corresponsales.csv' para comenzar.")
