@@ -1,104 +1,70 @@
 import streamlit as st
 import pandas as pd
 
-
-# 1. CONFIGURACIÓN DE PÁGINA
 st.set_page_config(page_title="BVB - Gestión Corresponsales", layout="wide")
 
-# Título con estilo
 st.title("🏦 Gestión Estratégica de Corresponsales")
 st.markdown("---")
 
-# 2. CONEXIÓN AL GOOGLE SHEET (NUEVO ID)
+# URL Robusta para Google Sheets
 SHEET_ID = "1i998RGnLv8npxSLB5OyBvzNr36dQJD8RFdsKZj4UOfw"
-# Usamos el formato 'gviz' que es el más estable para archivos pesados
 URL_SHEET = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv"
 
-@st.cache_data(ttl=300) # Caché de 5 minutos para no saturar la carga
-def cargar_datos_banco():
+@st.cache_data(ttl=300)
+def cargar_datos():
     try:
-        # Leemos el archivo. Si hay filas corruptas por el peso, las salta.
+        # Cargamos el archivo saltando líneas corruptas
         df = pd.read_csv(URL_SHEET, on_bad_lines='skip', engine='python')
-        
-        # Limpieza de nombres de columnas
-        df.columns = [str(c).strip() for c in df.columns]
-        
-        # Eliminamos filas totalmente vacías
-        df = df.dropna(how='all')
-        
+        # Limpiamos los nombres de las columnas de espacios y saltos de línea
+        df.columns = [str(c).strip().replace('\n', '').replace('\r', '') for c in df.columns]
         return df
     except Exception as e:
-        st.error(f"Error al conectar con los datos: {e}")
+        st.error(f"Error al conectar: {e}")
         return None
 
-df_raw = cargar_datos_banco()
+df_raw = cargar_datos()
 
 if df_raw is not None:
-    # --- FILTROS EN LA BARRA LATERAL ---
-    st.sidebar.header("🔍 Filtros de Búsqueda")
-    
-    # Filtro de Ciudad
-    if 'Ciudad' in df_raw.columns:
-        lista_ciudades = ["Todas"] + sorted(df_raw['Ciudad'].dropna().unique().tolist())
-        ciudad_sel = st.sidebar.selectbox("Seleccione Municipio:", lista_ciudades)
-    else:
-        st.error("No se encontró la columna 'Ciudad'")
+    # --- BUSCADOR INTELIGENTE DE COLUMNAS ---
+    # Esto busca las columnas aunque el nombre no sea exacto
+    def encontrar_columna(nombre_deseado, lista_columnas):
+        for c in lista_columnas:
+            if nombre_deseado.lower() in c.lower():
+                return c
+        return None
+
+    col_ciudad = encontrar_columna("Ciudad", df_raw.columns)
+    col_esp = encontrar_columna("ESPECIALISTA", df_raw.columns)
+    col_dir = encontrar_columna("Dirección", df_raw.columns)
+    col_tipo = encontrar_columna("Tipo", df_raw.columns)
+
+    if not col_ciudad:
+        st.error("🚨 No se encontró una columna que diga 'Ciudad'.")
+        st.write("Columnas detectadas en el archivo:", list(df_raw.columns))
         st.stop()
 
-    # Filtro de Especialista
-    if 'ESPECIALISTA' in df_raw.columns:
-        lista_esp = ["Todos"] + sorted(df_raw['ESPECIALISTA'].dropna().unique().tolist())
-        esp_sel = st.sidebar.selectbox("Filtrar por Especialista:", lista_esp)
-    else:
-        esp_sel = "Todos"
+    # --- FILTROS ---
+    st.sidebar.header("🔍 Filtros")
+    
+    ciudades = ["Todas"] + sorted(df_raw[col_ciudad].dropna().unique().tolist())
+    ciudad_sel = st.sidebar.selectbox("Seleccione Municipio:", ciudades)
 
-    # APLICAR FILTROS
-    df = df_raw.copy()
+    df_filtrado = df_raw.copy()
     if ciudad_sel != "Todas":
-        df = df[df['Ciudad'] == ciudad_sel]
-    if esp_sel != "Todos":
-        df = df[df['ESPECIALISTA'] == esp_sel]
+        df_filtrado = df_filtrado[df_filtrado[col_ciudad] == ciudad_sel]
 
-    # --- MÉTRICAS PRINCIPALES ---
-    c1, c2, c3 = st.columns(3)
-    
-    with c1:
-        st.metric(f"Puntos en {ciudad_sel}", f"{len(df):,}")
-    
-    with c2:
-        # Buscamos a Jorge Arrieta (con manejo de errores por si no está en la vista actual)
-        jorge_data = df_raw[df_raw['ESPECIALISTA'].str.contains("JORGE ARRIETA", case=False, na=False)]
-        st.metric("Total Jorge Arrieta", len(jorge_data))
-        
-    with c3:
-        # Buscamos tu nombre (Ajustado según el Excel)
-        tu_data = df_raw[df_raw['ESPECIALISTA'].str.contains("ALAN", case=False, na=False)]
-        st.metric("Total Alan Forero", len(tu_data))
+    # --- MÉTRICAS ---
+    c1, c2 = st.columns(2)
+    c1.metric(f"Corresponsales en {ciudad_sel}", len(df_filtrado))
+    c2.metric("Total en Base de Datos", len(df_raw))
 
-    st.divider()
-
-    # --- TABLA DE RESULTADOS ---
-    st.subheader(f"📍 Detalle de Corresponsales: {ciudad_sel}")
+    # --- TABLA ---
+    st.subheader(f"📍 Detalle de Puntos en {ciudad_sel}")
     
-    # Columnas que solicitó la Directora (Corregido)
-    cols_interes = ['Tipo de CBs', 'Dirección', 'Ciudad', 'ESPECIALISTA']
+    # Armamos la vista con las columnas encontradas
+    columnas_mostrar = [c for c in [col_ciudad, col_dir, col_tipo, col_esp] if c is not None]
     
-    # Verificamos que todas existan antes de mostrar la tabla
-    cols_existentes = [c for c in cols_interes if c in df.columns]
-    
-    # Buscador de texto rápido
-    search = st.text_input("🔍 Buscar por dirección o tipo de CB:")
-    if search:
-        # Filtro de búsqueda que ignora mayúsculas/minúsculas
-        df_display = df[df.astype(str).apply(lambda x: x.str.contains(search, case=False, na=False)).any(axis=1)]
-    else:
-        df_display = df
+    st.dataframe(df_filtrado[columnas_mostrar], use_container_width=True, hide_index=True)
 
-    # Mostrar la tabla final
-    st.dataframe(df_display[cols_existentes], use_container_width=True, hide_index=True)
-
-    # Botón para descargar reporte
-    csv_data = df_display.to_csv(index=False).encode('utf-8')
-    st.download_button("📥 Descargar esta lista (CSV)", csv_data, "reporte_bvb.csv", "text/csv")
 else:
-    st.warning("Cargando datos... Si el error persiste, verifica la conexión a internet.")
+    st.info("Configurando conexión con Google Sheets...")
