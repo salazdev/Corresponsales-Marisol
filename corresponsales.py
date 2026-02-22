@@ -2,119 +2,128 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-# 1. CONFIGURACIÓN DE LA APP
-st.set_page_config(page_title="BVB - Gestión Comercial", layout="wide")
+# 1. CONFIGURACIÓN E IDENTIDAD
+st.set_page_config(page_title="BVB - Dashboard Estratégico", layout="wide")
 
-# ESTILO CSS
 st.markdown("""
     <style>
-    .main { background-color: #f8f9fa; }
-    [data-testid="stMetricValue"] { color: #000000 !important; font-weight: bold; }
-    [data-testid="stMetricLabel"] { color: #333333 !important; font-size: 1.1rem !important; }
+    .main { background-color: #f4f7f9; }
+    [data-testid="stMetricValue"] { color: #0033a0 !important; font-weight: bold; }
     div[data-testid="stMetric"] {
         background-color: #ffffff;
-        border: 1px solid #e0e0e0;
-        border-left: 8px solid #0033a0;
-        padding: 15px;
-        border-radius: 10px;
-        box-shadow: 2px 2px 5px rgba(0,0,0,0.05);
+        border-left: 5px solid #EBB932;
+        box-shadow: 2px 2px 10px rgba(0,0,0,0.1);
     }
     </style>
     """, unsafe_allow_html=True)
 
-st.title("🏦 Panel de Control: Corresponsalía Bancaria")
+st.title("🏦 Gestión Integral de Corresponsalía BVB")
 
-# 2. CARGA DE DATOS ROBUSTA
-@st.cache_data(ttl=3600)
-def cargar_datos_locales():
+# 2. CARGA Y LIMPIEZA DE DATOS (Basado en tus columnas reales)
+@st.cache_data(ttl=600)
+def cargar_datos():
     try:
-        # Leer archivo con detección de separador
-        df = pd.read_csv("datos_corresponsales.csv", sep=None, engine='python', on_bad_lines='skip')
+        df = pd.read_csv("datos_corresponsales.csv", sep=None, engine='python')
         
-        if df.empty:
-            return None
-
-        # Limpiar nombres de columnas y quitar duplicados
-        cols = pd.Series(df.columns).str.strip()
-        for i, col in enumerate(cols):
-            if (cols == col).sum() > 1:
-                count = list(cols[:i]).count(col)
-                if count > 0:
-                    cols[i] = f"{col}.{count}"
-        df.columns = cols
-
-        # LIMPIEZA DE COLUMNAS NUMÉRICAS
-        for col in df.columns:
-            if any(x in col.upper() for x in ["TX", "2025", "2026", "TRANSA", "$"]):
-                if df[col].dtype == 'object':
-                    df[col] = df[col].astype(str).str.replace('$', '', regex=False).str.replace(',', '', regex=False).str.strip()
+        # Limpiar nombres de columnas duplicadas o con espacios
+        df.columns = [str(c).strip() for c in df.columns]
+        
+        # Forzar a números las columnas de transacciones y dinero
+        cols_numericas = [
+            'Tx Ultimo Semestre', 'Jul 2025 TX', 'Ago 2025 TX', 'Sep 2025 TX', 
+            'Oct 2025 TX', 'Nov 2025 TX', 'Dic 2025 TX', 'Ene 2026 TX',
+            'Ene 2026 $$', 'Ago 2025 $$', 'Sep 2025 $$', 'Oct 2025 $$', 
+            'Nov 2025 $$', 'Dic 2025 $$'
+        ]
+        
+        for col in cols_numericas:
+            if col in df.columns:
+                df[col] = df[col].astype(str).str.replace('$', '', regex=False).str.replace(',', '', regex=False)
                 df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
-            
+        
         return df
     except Exception as e:
-        st.error(f"Error al cargar el archivo: {e}")
+        st.error(f"Error al procesar el archivo: {e}")
         return None
 
-df = cargar_datos_locales()
+df = cargar_datos()
 
 if df is not None:
-    # Identificación de columnas
-    cols = list(df.columns)
-    col_ciudad = next((c for c in cols if "ciudad" in c.lower()), "Ciudad")
-    col_esp = next((c for c in cols if "especialista" in c.lower()), "ESPECIALISTA")
-    col_dir = next((c for c in cols if "dirección" in c.lower() or "direccion" in c.lower()), "Dirección")
+    # --- BARRA LATERAL (FILTROS SOLICITADOS) ---
+    st.sidebar.header("🔍 Panel de Búsqueda")
     
-    # Buscamos la columna de transacciones totales
-    posibles_tx = [c for c in cols if "TX ULTIMO SEMESTRE" in c.upper() or "TOTAL" in c.upper()]
-    col_tx_total = posibles_tx[0] if posibles_tx else (next((c for c in cols if "TX" in c.upper() or "TRANSA" in c.upper()), cols[-1]))
+    # Filtro por Especialista
+    lista_esp = ["Todos"] + sorted(df['ESPECIALISTA'].unique().tolist())
+    esp_sel = st.sidebar.selectbox("Seleccione Especialista:", lista_esp)
+    
+    # Filtro por Municipio (Columna Ciudad)
+    lista_ciu = ["Todas"] + sorted(df['Ciudad'].unique().tolist())
+    ciu_sel = st.sidebar.selectbox("Seleccione Municipio:", lista_ciu)
+    
+    # Aplicar Filtros
+    df_f = df.copy()
+    if esp_sel != "Todos":
+        df_f = df_f[df_f['ESPECIALISTA'] == esp_sel]
+    if ciu_sel != "Todas":
+        df_f = df_f[df_f['Ciudad'] == ciu_sel]
 
-    # --- FILTROS ---
-    st.sidebar.header("🔍 Criterios de Consulta")
-    lista_esp = ["Todos"] + sorted(df[col_esp].dropna().unique().tolist())
-    esp_sel = st.sidebar.selectbox("Especialista:", lista_esp)
+    # --- CUADRO DE MÉTRICAS PRINCIPALES ---
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric("Total Corresponsales", f"{len(df_f):,}")
+    m2.metric("TX Totales Semestre", f"{df_f['Tx Ultimo Semestre'].sum():,.0f}")
+    m3.metric("Puntos Activos", f"{len(df_f[df_f['Transa si/no MES'] == 'Si']):,}")
+    m4.metric("Ene 2026 (Dinero)", f"$ {df_f['Ene 2026 $$'].sum():,.0f}")
 
-    df_temp = df[df[col_esp] == esp_sel] if esp_sel != "Todos" else df
-    lista_ciudades = ["Todas"] + sorted(df_temp[col_ciudad].dropna().unique().tolist())
-    ciudad_sel = st.sidebar.selectbox("Municipio:", lista_ciudades)
-
-    df_filtrado = df_temp.copy()
-    if ciudad_sel != "Todas":
-        df_filtrado = df_filtrado[df_filtrado[col_ciudad] == ciudad_sel]
-
-    # --- PESTAÑAS ---
-    tab1, tab2, tab3 = st.tabs(["📍 Consulta", "📈 Análisis", "🚨 Alertas"])
+    # --- PESTAÑAS DE ANÁLISIS ---
+    tab1, tab2, tab3 = st.tabs(["📊 Análisis Semestral", "🏆 Ranking Top 50", "📋 Listado Detallado"])
 
     with tab1:
-        st.subheader(f"📍 Listado: {ciudad_sel}")
-        m1, m2 = st.columns(2)
+        st.subheader("Análisis de Tendencia (Julio 2025 - Enero 2026)")
         
-        # Corregido: Cierre de paréntesis y formato
-        m1.metric("Puntos Encontrados", f"{len(df_filtrado):,}")
+        # Preparar datos para el gráfico de línea
+        meses_tx = {
+            'Jul': df_f['Jul 2025 TX'].sum(),
+            'Ago': df_f['Ago 2025 TX'].sum(),
+            'Sep': df_f['Sep 2025 TX'].sum(),
+            'Oct': df_f['Oct 2025 TX'].sum(),
+            'Nov': df_f['Nov 2025 TX'].sum(),
+            'Dic': df_f['Dic 2025 TX'].sum(),
+            'Ene': df_f['Ene 2026 TX'].sum()
+        }
+        df_evolucion = pd.DataFrame(list(meses_tx.items()), columns=['Mes', 'Cantidad TX'])
         
-        suma_tx = float(df_filtrado[col_tx_total].sum())
-        m2.metric("TX Totales", f"{suma_tx:,.0f}")
-        
-        st.dataframe(df_filtrado, use_container_width=True, hide_index=True)
+        c1, c2 = st.columns(2)
+        with c1:
+            fig_linea = px.line(df_evolucion, x='Mes', y='Cantidad TX', title="Tendencia de Transacciones por Mes", markers=True)
+            st.plotly_chart(fig_linea, use_container_width=True)
+            
+        with c2:
+            # Gráfico de barras por Municipio
+            top_mun = df_f.groupby('Ciudad')['Tx Ultimo Semestre'].sum().nlargest(10).reset_index()
+            fig_bar = px.bar(top_mun, x='Tx Ultimo Semestre', y='Ciudad', orientation='h', 
+                             title="Top 10 Municipios por Actividad", color_discrete_sequence=['#0033a0'])
+            st.plotly_chart(fig_bar, use_container_width=True)
 
     with tab2:
-        st.subheader("📈 Evolución de Transacciones")
-        meses = [c for c in cols if any(m in c.upper() for m in ["JUL", "AGO", "SEP", "OCT", "NOV", "DIC", "ENE"])]
-        if meses:
-            df_t = df_filtrado[meses].sum().reset_index()
-            df_t.columns = ["Mes", "Total TX"]
-            fig = px.line(df_t, x="Mes", y="Total TX", markers=True, color_discrete_sequence=["#0033a0"])
-            st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.info("No se encontraron columnas de meses para la tendencia.")
+        st.subheader("🏆 Top 50 Corresponsales VIP")
+        st.write("Ranking basado en transacciones acumuladas del último semestre.")
+        
+        # Creamos el Top 50
+        top_50 = df.nlargest(50, 'Tx Ultimo Semestre')
+        
+        # Mapa de calor o tabla resaltada
+        st.dataframe(top_50[['ESPECIALISTA', 'Ciudad', 'Dirección', 'Tx Ultimo Semestre', 'Ene 2026 TX', 'Estado']], 
+                     use_container_width=True, hide_index=True)
 
     with tab3:
-        st.subheader("🚨 Alertas de Gestión")
-        df_al = df_filtrado[df_filtrado[col_tx_total] == 0].copy()
-        if not df_al.empty:
-            st.warning(f"Hay {len(df_al)} puntos con 0 transacciones.")
-            st.dataframe(df_al[[col_esp, col_ciudad, col_dir, col_tx_total]], use_container_width=True)
-        else:
-            st.success("✅ No se detectan puntos inactivos en esta selección.")
+        st.subheader("🔍 Consultar Corresponsales")
+        busqueda = st.text_input("Escriba Dirección o Municipio para buscar rápido:")
+        
+        df_final = df_f.copy()
+        if busqueda:
+            df_final = df_f[df_f.astype(str).apply(lambda x: x.str.contains(busqueda, case=False)).any(axis=1)]
+            
+        st.dataframe(df_final, use_container_width=True, hide_index=True)
 
 else:
-    st.info("📢 Sube el archivo 'datos_corresponsales.csv' para comenzar.")
+    st.info("📢 Esperando conexión con 'datos_corresponsales.csv'. Asegúrate de que el archivo esté en la raíz de tu GitHub.")
