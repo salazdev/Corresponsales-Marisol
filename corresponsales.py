@@ -4,7 +4,7 @@ import plotly.express as px
 import os
 
 # 1. CONFIGURACIÓN VISUAL
-st.set_page_config(page_title="BVB - Gestión Comercial", layout="wide")
+st.set_page_config(page_title="Banco de Bogotá - Gestión Comercial", layout="wide")
 
 # ESTILO: Color de letras NEGRO absoluto para títulos de métricas
 st.markdown("""
@@ -151,3 +151,4 @@ if df is not None:
 
 else:
     st.warning("⚠️ Cargando datos...")
+
