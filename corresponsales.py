@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 
+
 # 1. CONFIGURACIÓN DE PÁGINA
 st.set_page_config(page_title="BVB - Gestión Corresponsales", layout="wide")
 
@@ -79,5 +80,25 @@ if df_raw is not None:
     # --- TABLA DE RESULTADOS ---
     st.subheader(f"📍 Detalle de Corresponsales: {ciudad_sel}")
     
-    # Columnas que solicitó la Directora
-    cols_interes = ['Tipo de CBs', 'Dirección', 'Ciudad', 'ESPECIALISTA
+    # Columnas que solicitó la Directora (Corregido)
+    cols_interes = ['Tipo de CBs', 'Dirección', 'Ciudad', 'ESPECIALISTA']
+    
+    # Verificamos que todas existan antes de mostrar la tabla
+    cols_existentes = [c for c in cols_interes if c in df.columns]
+    
+    # Buscador de texto rápido
+    search = st.text_input("🔍 Buscar por dirección o tipo de CB:")
+    if search:
+        # Filtro de búsqueda que ignora mayúsculas/minúsculas
+        df_display = df[df.astype(str).apply(lambda x: x.str.contains(search, case=False, na=False)).any(axis=1)]
+    else:
+        df_display = df
+
+    # Mostrar la tabla final
+    st.dataframe(df_display[cols_existentes], use_container_width=True, hide_index=True)
+
+    # Botón para descargar reporte
+    csv_data = df_display.to_csv(index=False).encode('utf-8')
+    st.download_button("📥 Descargar esta lista (CSV)", csv_data, "reporte_bvb.csv", "text/csv")
+else:
+    st.warning("Cargando datos... Si el error persiste, verifica la conexión a internet.")
