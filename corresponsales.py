@@ -2,156 +2,136 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-# 1. CONFIGURACIÓN E IDENTIDAD
+# 1. CONFIGURACIÓN DE PÁGINA
 st.set_page_config(page_title="BVB - Gestión Comercial", layout="wide")
 
+# Diseño visual (Azul y Dorado BVB)
 st.markdown("""
     <style>
-    .main { background-color: #0e1117; }
-    [data-testid="stMetricValue"] { color: #0033a0 !important; font-weight: bold; font-size: 2rem; }
+    .main { background-color: #f4f7f9; }
+    [data-testid="stMetricValue"] { color: #0033a0 !important; font-weight: bold; }
     div[data-testid="stMetric"] { 
         background-color: #ffffff; 
         border-left: 5px solid #EBB932; 
         border-radius: 10px; 
-        padding: 15px;
         box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    }
-    .stTabs [data-baseweb="tab-list"] { gap: 10px; }
-    .stTabs [data-baseweb="tab"] {
-        background-color: #f0f2f6;
-        border-radius: 4px 4px 0px 0px;
-        padding: 10px 20px;
     }
     </style>
     """, unsafe_allow_html=True)
 
 st.title("🏦 Panel de Gestión Comercial BVB")
 
-# 2. MOTOR DE CARGA MEJORADO
+# 2. MOTOR DE CARGA "TODO TERRENO"
 @st.cache_data(ttl=60)
-def cargar_datos():
-    encodings = ['utf-8', 'latin-1', 'cp1252']
-    for enc in encodings:
-        try:
-            df = pd.read_csv("datos_corresponsales.csv", sep=None, engine='python', encoding=enc)
-            if len(df.columns) > 2:
-                # Limpiar nombres de columnas (quitar saltos de línea y espacios)
-                df.columns = [str(c).replace('\n', ' ').strip() for c in df.columns]
-                
-                # Manejar duplicados de "Ciudad"
-                cols = pd.Series(df.columns)
-                for i, col in enumerate(cols):
-                    if (cols == col).sum() > 1:
-                        count = list(cols[:i]).count(col)
-                        if count > 0: cols[i] = f"{col}_{count}"
-                df.columns = cols
+def cargar_datos_extremo():
+    try:
+        # Intentamos leer el archivo ignorando errores de codificación
+        df = pd.read_csv("datos_corresponsales.csv", sep=None, engine='python', encoding_errors='ignore')
+        
+        # Limpieza profunda de nombres de columnas
+        # Esto quita los saltos de línea que mete Excel dentro de las celdas
+        df.columns = [str(c).replace('\n', ' ').replace('\r', ' ').strip() for c in df.columns]
+        
+        # Manejo de nombres DUPLICADOS (como "Ciudad" y "Ciudad")
+        cols = pd.Series(df.columns)
+        for i, col in enumerate(cols):
+            if (cols == col).sum() > 1:
+                count = list(cols[:i]).count(col)
+                if count > 0:
+                    cols[i] = f"{col}_{count}"
+        df.columns = cols
 
-                # Convertir columnas de TX y $$ a números
-                for col in df.columns:
-                    if any(x in col.upper() for x in ["TX", "$$", "TRANSA", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC", "ENE"]):
-                        df[col] = df[col].astype(str).str.replace('$', '', regex=False).str.replace(',', '', regex=False).str.strip()
-                        df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
-                return df
-        except:
-            continue
-    return None
+        # Limpieza de datos (quitar $ y comas para poder SUMAR)
+        for col in df.columns:
+            if any(x in col.upper() for x in ["TX", "$$", "TRANSA", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC", "ENE"]):
+                df[col] = df[col].astype(str).str.replace('$', '', regex=False).str.replace(',', '', regex=False).str.strip()
+                df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
+        
+        return df
+    except Exception as e:
+        st.error(f"Error en la estructura del archivo: {e}")
+        return None
 
-df = cargar_datos()
+df = cargar_datos_extremo()
 
 if df is not None:
-    # --- FILTROS LATERALES ---
-    st.sidebar.header("🔍 Filtros de Búsqueda")
-    
+    # Identificación de columnas clave según tu descripción
+    # Buscamos columnas aunque tengan nombres ligeramente diferentes
     col_esp = next((c for c in df.columns if "ESPECIALISTA" in c.upper()), df.columns[0])
     col_mun = next((c for c in df.columns if "CIUDAD" in c.upper()), df.columns[1])
     col_estado = next((c for c in df.columns if "ESTADO" in c.upper()), None)
     col_rango = next((c for c in df.columns if "RANGOS" in c.upper()), None)
+    col_tx_total = next((c for c in df.columns if "TX ULTIMO SEMESTRE" in c.upper()), None)
+    col_si_no = next((c for c in df.columns if "TRANSA SI/NO MES" in c.upper()), None)
 
-    esp_sel = st.sidebar.selectbox("Filtrar por Especialista:", ["TODOS"] + sorted(df[col_esp].unique().astype(str).tolist()))
-    mun_sel = st.sidebar.selectbox("Filtrar por Municipio:", ["TODOS"] + sorted(df[col_mun].unique().astype(str).tolist()))
+    # --- BARRA LATERAL CON DESPLEGABLES ---
+    st.sidebar.header("🔍 Filtros de Consulta")
     
-    if col_estado:
-        est_sel = st.sidebar.multiselect("Nivel/Estado:", sorted(df[col_estado].unique().astype(str).tolist()), default=None)
+    lista_esp = ["TODOS"] + sorted(df[col_esp].unique().astype(str).tolist())
+    esp_sel = st.sidebar.selectbox("Especialista:", lista_esp)
     
-    # Aplicar Filtros
+    lista_mun = ["TODOS"] + sorted(df[col_mun].unique().astype(str).tolist())
+    mun_sel = st.sidebar.selectbox("Municipio:", lista_mun)
+
     df_f = df.copy()
     if esp_sel != "TODOS": df_f = df_f[df_f[col_esp] == esp_sel]
     if mun_sel != "TODOS": df_f = df_f[df_f[col_mun] == mun_sel]
-    if col_estado and est_sel: df_f = df_f[df_f[col_estado].isin(est_sel)]
 
-    # --- KPI'S PRINCIPALES ---
-    st.subheader("🚀 Indicadores Clave (Semestre Actual)")
-    k1, k2, k3, k4 = st.columns(4)
+    # --- KPI'S (Métricas) ---
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Puntos", f"{len(df_f)}")
     
-    k1.metric("Puntos Seleccionados", f"{len(df_f)}")
+    if col_tx_total:
+        c2.metric("TX Semestre", f"{df_f[col_tx_total].sum():,.0f}")
     
-    col_tx_total = next((c for c in df.columns if "TX ULTIMO SEMESTRE" in c.upper()), "Tx Ultimo Semestre")
-    k2.metric("Total TX Semestre", f"{df_f[col_tx_total].sum():,.0f}")
-    
-    col_money_ene = next((c for c in df.columns if "ENE 2026 $$" in c.upper()), None)
-    if col_money_ene:
-        k3.metric("Monto Ene 2026 ($$)", f"$ {df_f[col_money_ene].sum():,.0f}")
-    
-    col_si_no = next((c for c in df.columns if "TRANSA SI/NO MES" in c.upper()), None)
+    col_ene_tx = next((c for c in df.columns if "ENE 2026 TX" in c.upper()), None)
+    if col_ene_tx:
+        c3.metric("TX Enero 2026", f"{df_f[col_ene_tx].sum():,.0f}")
+        
     if col_si_no:
-        activos = len(df_f[df_f[col_si_no].astype(str).str.upper().str.contains("SI")])
-        k4.metric("Puntos con Transacción", activos)
+        con_tx = len(df_f[df_f[col_si_no].astype(str).str.upper().str.contains("SI")])
+        c4.metric("Activos (Si)", con_tx)
 
-    # --- CUERPO DEL PANEL ---
-    tab1, tab2, tab3, tab4 = st.tabs(["📊 Análisis Comparativo", "🏆 Top 50 VIP", "📈 Tendencia TX vs $$", "📋 Detalle Completo"])
+    # --- PESTAÑAS ---
+    tab1, tab2, tab3 = st.tabs(["📊 Análisis por Estado", "🏆 Top 50 VIP", "📈 Comparativo TX vs $$"])
 
     with tab1:
-        st.subheader("Distribución por Nivel y Municipio")
-        c1, c2 = st.columns(2)
-        with c1:
+        st.subheader("Distribución de la Red")
+        col_a, col_b = st.columns(2)
+        with col_a:
             if col_estado:
-                fig_pie = px.pie(df_f, names=col_estado, title="Proporción por Estado (Master/Medio/Intermedio)", 
-                                 hole=0.4, color_discrete_sequence=px.colors.qualitative.Prism)
-                st.plotly_chart(fig_pie, use_container_width=True)
-        with c2:
-            top_mun = df_f.groupby(col_mun)[col_tx_total].sum().nlargest(10).reset_index()
-            fig_bar = px.bar(top_mun, x=col_tx_total, y=col_mun, orientation='h', title="Top 10 Municipios por TX",
-                             color_discrete_sequence=['#0033a0'])
-            st.plotly_chart(fig_bar, use_container_width=True)
+                fig_estado = px.pie(df_f, names=col_estado, title="Niveles (Master/Medio/Intermedio)", hole=0.4)
+                st.plotly_chart(fig_estado, use_container_width=True)
+        with col_b:
+            if col_rango:
+                fig_rango = px.bar(df_f[col_rango].value_counts().reset_index(), x='index', y=col_rango, title="Distribución por Rangos")
+                st.plotly_chart(fig_rango, use_container_width=True)
 
     with tab2:
-        st.subheader("🏆 Top 50 Corresponsales con Mayor Volumen")
-        top_50 = df_f.nlargest(50, col_tx_total)
-        # Columnas dinámicas para la tabla
-        cols_mostrar = [col_esp, col_mun, 'Dirección', col_estado, col_tx_total]
-        if col_money_ene: cols_mostrar.append(col_money_ene)
-        st.dataframe(top_50[[c for c in cols_mostrar if c in df_f.columns]], use_container_width=True, hide_index=True)
+        st.subheader("Ranking Top 50")
+        if col_tx_total:
+            top_50 = df_f.nlargest(50, col_tx_total)
+            st.dataframe(top_50[[col_esp, col_mun, 'Dirección', col_tx_total]], use_container_width=True, hide_index=True)
 
     with tab3:
-        st.subheader("Comparativo Mensual: Cantidades (TX) vs Valores ($$)")
+        st.subheader("Histórico Semestral (Cantidades vs Dinero)")
         meses = ["JUL", "AGO", "SEP", "OCT", "NOV", "DIC", "ENE"]
-        data_meses = []
+        data_ev = []
         for m in meses:
             c_tx = next((c for c in df.columns if m in c.upper() and "TX" in c.upper()), None)
             c_money = next((c for c in df.columns if m in c.upper() and "$$" in c.upper()), None)
-            if c_tx:
-                data_meses.append({
-                    "Mes": m, 
-                    "Tipo": "Cantidades (TX)", 
-                    "Valor": df_f[c_tx].sum()
-                })
-            if c_money:
-                # Nota: Dividimos por un factor para que el gráfico sea legible si el dinero es muy alto
-                data_meses.append({
-                    "Mes": m, 
-                    "Tipo": "Valores ($$)", 
-                    "Valor": df_f[c_money].sum()
-                })
+            if c_tx: data_ev.append({"Mes": m, "Tipo": "Cantidades (TX)", "Valor": df_f[c_tx].sum()})
+            if c_money: data_ev.append({"Mes": m, "Tipo": "Dinero ($$)", "Valor": df_f[c_money].sum()})
         
-        if data_meses:
-            df_meses = pd.DataFrame(data_meses)
-            fig_compare = px.line(df_meses, x="Mes", y="Valor", color="Tipo", markers=True, 
-                                  title="Evolución Semestral TX vs $$")
-            st.plotly_chart(fig_compare, use_container_width=True)
+        if data_ev:
+            df_ev = pd.DataFrame(data_ev)
+            fig_ev = px.line(df_ev, x="Mes", y="Valor", color="Tipo", markers=True)
+            st.plotly_chart(fig_ev, use_container_width=True)
 
-    with tab4:
-        st.subheader("📋 Base de Datos Filtrada")
-        st.dataframe(df_f, use_container_width=True, hide_index=True)
+    st.divider()
+    st.subheader("📋 Base de Datos Completa")
+    st.dataframe(df_f, use_container_width=True, hide_index=True)
 
 else:
-    st.error("🚨 Error: No se puede leer el archivo. Verifica el nombre 'datos_corresponsales.csv' en GitHub.")
+    st.error("🚨 Sigue habiendo un problema con el archivo 'datos_corresponsales.csv'.")
+    st.info("Asegúrate de que el archivo en GitHub sea un CSV real y no un Excel (.xlsx) renombrado a .csv.")
