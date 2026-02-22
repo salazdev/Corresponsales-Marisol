@@ -1,113 +1,53 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
 
-# 1. CONFIGURACIÓN DE LA APP
-st.set_page_config(page_title="Banco de Bogotá - Corresponsalía", layout="wide")
+st.set_page_config(page_title="Gestión Corresponsales", layout="wide")
 
-# Estilo visual corporativo
-st.markdown("""
-    <style>
-    .main { background-color: #f0f2f6; }
-    .stMetric { background-color: #ffffff; padding: 20px; border-radius: 15px; border: 1px solid #e0e0e0; }
-    </style>
-    """, unsafe_allow_html=True)
-
-st.title("🏦 Gestión Estratégica de Corresponsales")
-st.info("Plataforma de consulta rápida para la Dirección de Corresponsalía.")
-
-# 2. CONEXIÓN A GOOGLE SHEETS
-# Reemplaza con el ID del archivo de la Directora
-SHEET_ID = "1VltkgOm0rb6aWso2wuSH7kmcoH_HJSWZGadNmnAEofc" 
+SHEET_ID = "d/1VltkgOm0rb6aWso2wuSH7kmcoH_HJSWZGadNmnAEofc" 
 URL_SHEET = f"https://docs.google.com/spreadsheets/d/1VltkgOm0rb6aWso2wuSH7kmcoH_HJSWZGadNmnAEofc/edit?usp=sharing"
 
 @st.cache_data(ttl=60)
 def cargar_datos():
     try:
-        # Usamos on_bad_lines='skip' para que ignore filas corruptas 
-        # y engine='python' para manejar archivos grandes y complejos
+        # Leemos ignorando filas problemáticas
         df = pd.read_csv(URL_SHEET, on_bad_lines='skip', engine='python')
         
-        # Limpieza extrema de columnas
-        df.columns = [str(c).strip() for c in df.columns]
+        # LIMPIEZA EXTREMA DE COLUMNAS
+        # 1. Quitar espacios, tabulaciones y saltos de línea de los nombres
+        df.columns = df.columns.str.strip().str.replace('\n', '').str.replace('\r', '')
         
-        # Eliminar filas que estén completamente vacías (común en archivos grandes)
-        df = df.dropna(how='all')
+        # 2. Eliminar columnas que no tengan nombre (fantasmas)
+        df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
         
         return df
     except Exception as e:
-        st.error(f"Error técnico de lectura: {e}")
+        st.error(f"Error al cargar: {e}")
         return None
 
 df_raw = cargar_datos()
 
 if df_raw is not None:
-    # --- BARRA LATERAL (FILTROS) ---
-    st.sidebar.header("🔍 Criterios de Búsqueda")
+    # --- DIAGNÓSTICO (Solo aparecerá si hay error) ---
+    # Esto nos dirá cómo leyó Python los nombres de tus columnas
+    nombres_reales = df_raw.columns.tolist()
     
-    # Filtro de Ciudad (Municipio)
-    lista_ciudades = ["Todas"] + sorted(df_raw['Ciudad'].dropna().unique().tolist())
-    ciudad_sel = st.sidebar.selectbox("Seleccione Municipio/Ciudad:", lista_ciudades)
-    
-    # Filtro de Especialista
-    lista_especialistas = ["Todos"] + sorted(df_raw['ESPECIALISTA'].dropna().unique().tolist())
-    especialista_sel = st.sidebar.selectbox("Filtrar por Especialista:", lista_especialistas)
-
-    # APLICAR FILTROS AL DATAFRAME
-    df = df_raw.copy()
-    if ciudad_sel != "Todas":
-        df = df[df['Ciudad'] == ciudad_sel]
-    if especialista_sel != "Todos":
-        df = df[df['ESPECIALISTA'] == especialista_sel]
-
-    # --- MÉTRICAS DINÁMICAS ---
-    st.subheader(f"📊 Resumen: {ciudad_sel}")
-    c1, c2, c3 = st.columns(3)
-    
-    with c1:
-        # Aquí está la respuesta a tu solicitud: Conteo automático por Ciudad
-        st.metric(f"Corresponsales en {ciudad_sel}", len(df))
-    
-    with c2:
-        # Conteo para Jorge Arrieta
-        cant_jorge = len(df[df['ESPECIALISTA'].str.contains("JORGE ARRIETA", case=False, na=False)])
-        st.metric("Liderados por Jorge A.", cant_jorge)
-        
-    with c3:
-        # Conteo para tu nombre (Ajustar nombre exacto)
-        tu_nombre = "ALAN FORERO" 
-        cant_tu = len(df[df['ESPECIALISTA'].str.contains(tu_nombre, case=False, na=False)])
-        st.metric(f"Liderados por {tu_nombre}", cant_tu)
-
-    st.divider()
-
-    # --- DETALLE DE DIRECCIONES ---
-    st.subheader("📍 Direcciones y Tipos de Corresponsal")
-    
-    # Seleccionamos las columnas exactas que mencionaste
-    columnas_vista = ['Ciudad', 'Dirección', 'Tipo de CBs', 'ESPECIALISTA']
-    
-    if not df.empty:
-        # Buscador de texto libre para nombres específicos
-        busqueda = st.text_input("🔍 Buscar por dirección o tipo:")
-        if busqueda:
-            df_final = df[df.astype(str).apply(lambda x: x.str.contains(busqueda, case=False)).any(axis=1)]
-        else:
-            df_final = df
-
-        # Mostramos la tabla limpia
-        st.dataframe(df_final[columnas_vista], use_container_width=True, hide_index=True)
-        
-        # Gráfico rápido de apoyo
-        if ciudad_sel == "Todas":
-            st.subheader("📈 Distribución por Ciudad (Top 10)")
-            top_ciudades = df_raw['Ciudad'].value_counts().head(10).reset_index()
-            fig = px.bar(top_ciudades, x='Ciudad', y='count', labels={'count':'Cantidad'}, color='Ciudad')
-            st.plotly_chart(fig, use_container_width=True)
+    # Intentamos encontrar la columna 'Ciudad' incluso si tiene tildes o variaciones
+    col_ciudad = None
+    for c in nombres_reales:
+        if "ciudad" in c.lower():
+            col_ciudad = c
+            break
             
-    else:
-        st.warning("No se encontraron corresponsales con los filtros seleccionados.")
+    if col_ciudad is None:
+        st.error("🚨 No encontré la columna 'Ciudad'.")
+        st.write("Columnas detectadas en tu Excel:", nombres_reales)
+        st.stop() # Detiene la ejecución para que no salga el error rojo feo
 
-else:
-    st.error("Verifica el acceso al Google Sheet y los nombres de las columnas.")
+    # --- FILTRO LATERAL ---
+    st.sidebar.header("🔍 Filtros")
+    lista_ciudades = ["Todas"] + sorted(df_raw[col_ciudad].dropna().unique().tolist())
+    ciudad_sel = st.sidebar.selectbox("Seleccione Municipio:", lista_ciudades)
 
+    # ... Resto de tu código usando col_ciudad en lugar de 'Ciudad' ...
+    st.success(f"Conectado con éxito. Columna detectada: {col_ciudad}")
+    st.write(df_raw.head())
