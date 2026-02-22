@@ -9,7 +9,7 @@ st.title("🏦 Sistema de Consulta de Corresponsalía")
 SHEET_ID = "1i998RGnLv8npxSLB5OyBvzNr36dQJD8RFdsKZj4UOfw"
 # Si el GID 0 te da error, es posible que la base detallada tenga otro ID.
 # Pero probaremos con este formato que es más robusto:
-URL_SHEET = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Hoja1" 
+URL_SHEET = f"https://docs.google.com/spreadsheets/d/1i998RGnLv8npxSLB5OyBvzNr36dQJD8RFdsKZj4UOfw/edit?usp=sharing" 
 
 @st.cache_data(ttl=60)
 def cargar_datos_maestros():
@@ -71,3 +71,4 @@ else:
     1. Verifica que el archivo en Google Sheets siga siendo **Público** (Cualquiera con el enlace).
     2. En el Google Sheet, ve a **Archivo > Compartir > Publicar en la Web**. Dale a 'Publicar' y selecciona 'Valores separados por comas (.csv)'. Esto genera un enlace infalible.
     """)
+
