@@ -6,7 +6,7 @@ import os
 # 1. CONFIGURACIÓN VISUAL
 st.set_page_config(page_title="BVB - Gestión Comercial", layout="wide")
 
-# ESTILO: Color de letras NEGRO sólido (#000000) y números en AZUL
+# ESTILO CORREGIDO: Forzamos el color NEGRO en los títulos de las métricas
 st.markdown("""
     <style>
     .main { background-color: #f8f9fa; }
@@ -16,23 +16,24 @@ st.markdown("""
         background-color: #ffffff !important; 
         border-left: 5px solid #EBB932 !important; 
         border-radius: 10px !important; 
-        padding: 10px 15px !important;
+        padding: 15px 20px !important;
         box-shadow: 0 4px 6px rgba(0,0,0,0.1) !important; 
-        height: 110px !important;
+        height: 130px !important;
     }
     
-    /* TÍTULOS EN NEGRO (Línea que buscabas) */
+    /* TÍTULOS EN NEGRO ABSOLUTO (Líneas corregidas) */
     div[data-testid="stMetricLabel"] p { 
-        color: #000000 !important; 
+        color: #000000 !important; /* Código para Negro */
         font-size: 1.1rem !important; 
-        font-weight: 800 !important;
-        margin-bottom: 0px !important;
+        font-weight: 800 !important; /* Grosor máximo para legibilidad */
+        opacity: 1 !important;
+        visibility: visible !important;
     }
     
-    /* NÚMEROS EN AZUL BVB */
+    /* NÚMEROS EN AZUL */
     div[data-testid="stMetricValue"] div { 
         color: #0033a0 !important; 
-        font-size: 2.2rem !important; 
+        font-size: 2.3rem !important; 
         font-weight: bold !important;
     }
     </style>
@@ -43,20 +44,15 @@ st.title("🏦 Panel de Gestión Comercial BVB")
 # 2. MOTOR DE CARGA INTELIGENTE
 @st.cache_data(ttl=30)
 def cargar_datos_con_deteccion():
-    # Detectar cualquier archivo CSV en la carpeta
     archivos_csv = [f for f in os.listdir('.') if f.lower().endswith('.csv')]
+    if not archivos_csv: return None
     
-    if not archivos_csv:
-        return None
-    
-    # Priorizar el nombre estándar, si no, tomar el primero que encuentre
     nombre_final = "datos_corresponsales.csv" if "datos_corresponsales.csv" in archivos_csv else archivos_csv[0]
     
     for s in [';', ',', '\t']:
         try:
             df = pd.read_csv(nombre_final, sep=s, engine='python', on_bad_lines='skip', encoding_errors='ignore')
             if len(df.columns) > 2:
-                # Limpieza de nombres de columnas y duplicados
                 nuevos_nombres = []
                 for i, col in enumerate(df.columns):
                     nombre = str(col).upper().strip().replace('\n', ' ')
@@ -66,20 +62,17 @@ def cargar_datos_con_deteccion():
                         nuevos_nombres.append(nombre)
                 df.columns = nuevos_nombres
                 
-                # Convertir a números
                 for c in df.columns:
                     if any(x in c for x in ["TX", "$$", "ENE", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"]):
                         df[c] = df[c].astype(str).str.replace('$', '', regex=False).str.replace(',', '', regex=False).str.strip()
                         df[c] = pd.to_numeric(df[c], errors='coerce').fillna(0)
                 return df
-        except:
-            continue
+        except: continue
     return None
 
 df = cargar_datos_con_deteccion()
 
 if df is not None:
-    # --- IDENTIFICAR COLUMNAS ---
     def buscar_columna(keys, pos_backup):
         for k in keys:
             for c in df.columns:
@@ -103,7 +96,7 @@ if df is not None:
     if mun_sel != "TODOS": df_f = df_f[df_f[c_mun] == mun_sel]
 
     # --- INDICADORES ---
-    st.subheader("🚀 Indicadores de Gestión")
+    st.subheader("🚀 Indicadores Clave")
     k1, k2, k3, k4 = st.columns(4)
     k1.metric("Puntos Red", f"{len(df_f)}")
     k2.metric("TX Semestre", f"{df_f[c_tx_total].sum():,.0f}")
@@ -135,7 +128,5 @@ if df is not None:
 
     with tab3:
         st.dataframe(df_f, use_container_width=True)
-
 else:
-    st.error("🚨 No se encontró ningún archivo CSV en la carpeta.")
-    st.info(f"Archivos presentes en tu GitHub: {os.listdir('.')}")
+    st.error("🚨 No se encontró ningún archivo CSV.")
