@@ -3,46 +3,55 @@ import pandas as pd
 
 st.set_page_config(page_title="BVB - Consulta Integral", layout="wide")
 
+# 1. DATOS DE CONEXIÓN
 SHEET_ID = "1i998RGnLv8npxSLB5OyBvzNr36dQJD8RFdsKZj4UOfw"
-URL_SHEET = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv"
+# REEMPLAZA ESTE NÚMERO con el GID de la pestaña que tiene la base completa
+GID = "0"  # <--- Pon aquí el número que encontraste después de 'gid='
+
+URL_SHEET = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid={GID}"
 
 @st.cache_data(ttl=60)
-def cargar_datos():
-    df = pd.read_csv(URL_SHEET)
-    df.columns = [str(c).strip() for c in df.columns]
-    return df
+def cargar_datos_maestros():
+    try:
+        # Forzamos la lectura como CSV desde la pestaña específica
+        df = pd.read_csv(URL_SHEET, on_bad_lines='skip')
+        df.columns = [str(c).strip() for c in df.columns]
+        return df
+    except Exception as e:
+        st.error(f"Error de conexión: {e}")
+        return None
 
-df = cargar_datos()
-
-# --- VALIDACIÓN PROFESIONAL ---
 st.title("🏦 Sistema de Consulta de Corresponsalía")
+df = cargar_datos_maestros()
 
-if "Ciudad" in df.columns:
-    st.success("✅ Base Detallada Detectada")
+if df is not None:
+    # Mostramos las columnas para estar seguros de qué estamos leyendo
+    # st.write("Columnas detectadas:", list(df.columns)) # Solo para pruebas
+
+    # Intentamos encontrar las columnas aunque tengan nombres ligeramente distintos
+    col_ciudad = next((c for c in df.columns if "ciudad" in c.lower()), None)
+    col_esp = next((c for c in df.columns if "especialista" in c.lower()), None)
     
-    # 1. Filtros
-    col1, col2 = st.columns(2)
-    with col1:
-        ciudad_sel = st.selectbox("Seleccione Ciudad para ver direcciones:", sorted(df['Ciudad'].unique()))
-    with col2:
-        esp_sel = st.selectbox("Filtrar por Especialista:", ["Todos"] + sorted(df['ESPECIALISTA'].unique().tolist()))
+    if col_ciudad and col_esp:
+        st.success(f"✅ Conectado a la base de {len(df)} registros.")
+        
+        # --- FILTROS ---
+        ciudades = ["Todas"] + sorted(df[col_ciudad].dropna().unique().tolist())
+        ciudad_sel = st.selectbox("Seleccione Municipio:", ciudades)
 
-    # 2. Filtrado de datos
-    mask = df['Ciudad'] == ciudad_sel
-    if esp_sel != "Todos":
-        mask = mask & (df['ESPECIALISTA'] == esp_sel)
-    
-    df_ver = df[mask]
+        # --- FILTRADO ---
+        df_filtrado = df.copy()
+        if ciudad_sel != "Todas":
+            df_filtrado = df_filtrado[df_filtrado[col_ciudad] == ciudad_sel]
 
-    # 3. Respuesta a la Directora
-    st.metric(f"Cantidad de Corresponsales en {ciudad_sel}", len(df_ver))
-    
-    st.subheader("📍 Direcciones y Detalles")
-    # Mostramos lo que ella pidió: Dirección, Nombre/Tipo y Especialista
-    columnas_finales = [c for c in ['Dirección', 'Tipo de CBs', 'ESPECIALISTA'] if c in df.columns]
-    st.dataframe(df_ver[columnas_finales], use_container_width=True, hide_index=True)
-
-else:
-    st.error("⚠️ La hoja actual solo contiene un RESUMEN.")
-    st.info("Por favor, asegúrate de que la primera pestaña del Google Sheet sea la BASE COMPLETA con columnas de Ciudad y Dirección.")
-    st.write("Columnas detectadas actualmente:", list(df.columns))
+        # --- RESULTADOS ---
+        c1, c2 = st.columns(2)
+        c1.metric(f"Puntos en {ciudad_sel}", len(df_filtrado))
+        
+        # Tabla detallada
+        columnas_finales = [c for c in [col_ciudad, 'Dirección', 'Tipo de CBs', col_esp] if c in df.columns]
+        st.dataframe(df_filtrado[columnas_finales], use_container_width=True, hide_index=True)
+    else:
+        st.warning("⚠️ Aún no detecto la columna 'Ciudad'.")
+        st.info(f"Revisa que el GID ({GID}) sea el de la pestaña correcta.")
+        st.write("Columnas en esta pestaña:", list(df.columns))
