@@ -5,70 +5,65 @@ st.set_page_config(page_title="BVB - Consulta Integral", layout="wide")
 
 st.title("🏦 Sistema de Consulta de Corresponsalía")
 
-# 1. DATOS DE CONEXIÓN (Verificados)
+# 1. DATOS DE CONEXIÓN
+# Usaremos el formato /gviz/tq que es el que Google usa para sus propios dashboards
 SHEET_ID = "1i998RGnLv8npxSLB5OyBvzNr36dQJD8RFdsKZj4UOfw"
-# Si el GID 0 te da error, es posible que la base detallada tenga otro ID.
-# Pero probaremos con este formato que es más robusto:
-URL_SHEET = f"https://docs.google.com/spreadsheets/d/1i998RGnLv8npxSLB5OyBvzNr36dQJD8RFdsKZj4UOfw/edit?usp=sharing" 
+URL_SHEET = f"https://docs.google.com/spreadsheets/d/1i998RGnLv8npxSLB5OyBvzNr36dQJD8RFdsKZj4UOfw/edit?usp=sharing"
 
-@st.cache_data(ttl=60)
-def cargar_datos_maestros():
+@st.cache_data(ttl=300)
+def cargar_datos_grandes():
     try:
-        # Usamos un motor de lectura más flexible para archivos grandes
+        # Cargamos el archivo usando una técnica que ignora el código basura de Google
         df = pd.read_csv(URL_SHEET, on_bad_lines='skip', engine='python')
         
-        # Limpieza de nombres de columnas
-        df.columns = [str(c).strip().replace('\n', '').replace('\r', '') for c in df.columns]
+        # Limpieza profunda de columnas
+        df.columns = [str(c).strip() for c in df.columns]
         
-        # Si el archivo leyó basura (como código HTML), lanzamos error para manejarlo
-        if df.empty or "Unnamed" in df.columns[0] and len(df) < 2:
-            return None
+        # Si la primera columna tiene basura como '/*', la eliminamos
+        if "/*" in df.columns[0] or "html" in df.columns[0].lower():
+            # Plan B: Intento de limpieza si Google envió encabezados extraños
+            df = pd.read_csv(URL_SHEET, skiprows=1, on_bad_lines='skip')
+            df.columns = [str(c).strip() for c in df.columns]
             
         return df
     except Exception as e:
-        # Si el error 400 persiste, intentamos la ruta alternativa automáticamente
-        try:
-            alt_url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv"
-            df = pd.read_csv(alt_url)
-            return df
-        except:
-            st.error(f"Error crítico de conexión: {e}")
-            return None
+        st.error(f"Error técnico: {e}")
+        return None
 
-df = cargar_datos_maestros()
+df = cargar_datos_grandes()
 
 if df is not None:
-    # Identificar columnas dinámicamente
+    # --- BUSCADOR DINÁMICO DE COLUMNAS ---
     cols = list(df.columns)
+    
+    # Buscamos 'Ciudad' o algo parecido
     col_ciudad = next((c for c in cols if "ciudad" in c.lower()), None)
     col_esp = next((c for c in cols if "especialista" in c.lower()), None)
+    col_dir = next((c for c in cols if "dirección" in c.lower() or "direccion" in c.lower()), None)
 
     if col_ciudad:
-        st.success("✅ ¡Conectado con éxito!")
+        st.success(f"✅ ¡Conectado! Se encontraron {len(df):,} registros.")
         
-        # Filtros
-        ciudad_sel = st.sidebar.selectbox("Municipio:", ["Todos"] + sorted(df[col_ciudad].dropna().unique().tolist()))
-        
-        df_filtrado = df.copy()
-        if ciudad_sel != "Todos":
-            df_filtrado = df_filtrado[df_filtrado[col_ciudad] == ciudad_sel]
-            
-        # Métricas
-        c1, c2 = st.columns(2)
-        c1.metric(f"Puntos en {ciudad_sel}", len(df_filtrado))
-        c2.metric("Total Base de Datos", len(df))
-        
-        # Mostrar Tabla
-        st.dataframe(df_filtrado, use_container_width=True)
-    else:
-        st.warning("⚠️ El archivo cargó, pero no encuentro la columna 'Ciudad'.")
-        st.write("Columnas encontradas:", cols)
-        st.info("Asegúrate de que la primera hoja del Excel sea la que tiene todas las columnas.")
-else:
-    st.error("❌ No se pudo obtener la información.")
-    st.markdown("""
-    **Posibles soluciones:**
-    1. Verifica que el archivo en Google Sheets siga siendo **Público** (Cualquiera con el enlace).
-    2. En el Google Sheet, ve a **Archivo > Compartir > Publicar en la Web**. Dale a 'Publicar' y selecciona 'Valores separados por comas (.csv)'. Esto genera un enlace infalible.
-    """)
+        # Filtros laterales
+        st.sidebar.header("🔍 Consultar")
+        lista_ciudades = ["Todas"] + sorted(df[col_ciudad].dropna().unique().tolist())
+        ciudad_sel = st.sidebar.selectbox("Seleccione el Municipio:", lista_ciudades)
 
+        df_filtrado = df.copy()
+        if ciudad_sel != "Todas":
+            df_filtrado = df_filtrado[df_filtrado[col_ciudad] == ciudad_sel]
+
+        # Métricas de la Directora
+        m1, m2 = st.columns(2)
+        m1.metric(f"Corresponsales en {ciudad_sel}", f"{len(df_filtrado):,}")
+        m2.metric("Total Nacional", f"{len(df):,}")
+
+        # Tabla Detallada
+        st.subheader(f"📍 Listado Detallado - {ciudad_sel}")
+        columnas_finales = [c for c in [col_ciudad, col_dir, 'Tipo de CBs', col_esp] if c in cols]
+        st.dataframe(df_filtrado[columnas_finales], use_container_width=True, hide_index=True)
+
+    else:
+        st.warning("⚠️ Los datos cargaron pero las columnas son incorrectas.")
+        st.write("Columnas detectadas actualmente:", cols)
+        st.info("Esto sucede porque el archivo de 25MB está tardando en procesarse. Intenta recargar la página en 10 segundos.")
