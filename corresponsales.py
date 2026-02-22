@@ -1,53 +1,83 @@
 import streamlit as st
 import pandas as pd
 
-st.set_page_config(page_title="Gestión Corresponsales", layout="wide")
+# 1. CONFIGURACIÓN DE PÁGINA
+st.set_page_config(page_title="BVB - Gestión Corresponsales", layout="wide")
 
-SHEET_ID = "d/1VltkgOm0rb6aWso2wuSH7kmcoH_HJSWZGadNmnAEofc" 
-URL_SHEET = f"https://docs.google.com/spreadsheets/d/1VltkgOm0rb6aWso2wuSH7kmcoH_HJSWZGadNmnAEofc/edit?usp=sharing"
+# Título con estilo
+st.title("🏦 Gestión Estratégica de Corresponsales")
+st.markdown("---")
 
-@st.cache_data(ttl=60)
-def cargar_datos():
+# 2. CONEXIÓN AL GOOGLE SHEET (NUEVO ID)
+SHEET_ID = "1i998RGnLv8npxSLB5OyBvzNr36dQJD8RFdsKZj4UOfw"
+# Usamos el formato 'gviz' que es el más estable para archivos pesados
+URL_SHEET = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv"
+
+@st.cache_data(ttl=300) # Caché de 5 minutos para no saturar la carga
+def cargar_datos_banco():
     try:
-        # Leemos ignorando filas problemáticas
+        # Leemos el archivo. Si hay filas corruptas por el peso, las salta.
         df = pd.read_csv(URL_SHEET, on_bad_lines='skip', engine='python')
         
-        # LIMPIEZA EXTREMA DE COLUMNAS
-        # 1. Quitar espacios, tabulaciones y saltos de línea de los nombres
-        df.columns = df.columns.str.strip().str.replace('\n', '').str.replace('\r', '')
+        # Limpieza de nombres de columnas
+        df.columns = [str(c).strip() for c in df.columns]
         
-        # 2. Eliminar columnas que no tengan nombre (fantasmas)
-        df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
+        # Eliminamos filas totalmente vacías
+        df = df.dropna(how='all')
         
         return df
     except Exception as e:
-        st.error(f"Error al cargar: {e}")
+        st.error(f"Error al conectar con los datos: {e}")
         return None
 
-df_raw = cargar_datos()
+df_raw = cargar_datos_banco()
 
 if df_raw is not None:
-    # --- DIAGNÓSTICO (Solo aparecerá si hay error) ---
-    # Esto nos dirá cómo leyó Python los nombres de tus columnas
-    nombres_reales = df_raw.columns.tolist()
+    # --- FILTROS EN LA BARRA LATERAL ---
+    st.sidebar.header("🔍 Filtros de Búsqueda")
     
-    # Intentamos encontrar la columna 'Ciudad' incluso si tiene tildes o variaciones
-    col_ciudad = None
-    for c in nombres_reales:
-        if "ciudad" in c.lower():
-            col_ciudad = c
-            break
-            
-    if col_ciudad is None:
-        st.error("🚨 No encontré la columna 'Ciudad'.")
-        st.write("Columnas detectadas en tu Excel:", nombres_reales)
-        st.stop() # Detiene la ejecución para que no salga el error rojo feo
+    # Filtro de Ciudad
+    if 'Ciudad' in df_raw.columns:
+        lista_ciudades = ["Todas"] + sorted(df_raw['Ciudad'].dropna().unique().tolist())
+        ciudad_sel = st.sidebar.selectbox("Seleccione Municipio:", lista_ciudades)
+    else:
+        st.error("No se encontró la columna 'Ciudad'")
+        st.stop()
 
-    # --- FILTRO LATERAL ---
-    st.sidebar.header("🔍 Filtros")
-    lista_ciudades = ["Todas"] + sorted(df_raw[col_ciudad].dropna().unique().tolist())
-    ciudad_sel = st.sidebar.selectbox("Seleccione Municipio:", lista_ciudades)
+    # Filtro de Especialista
+    if 'ESPECIALISTA' in df_raw.columns:
+        lista_esp = ["Todos"] + sorted(df_raw['ESPECIALISTA'].dropna().unique().tolist())
+        esp_sel = st.sidebar.selectbox("Filtrar por Especialista:", lista_esp)
+    else:
+        esp_sel = "Todos"
 
-    # ... Resto de tu código usando col_ciudad en lugar de 'Ciudad' ...
-    st.success(f"Conectado con éxito. Columna detectada: {col_ciudad}")
-    st.write(df_raw.head())
+    # APLICAR FILTROS
+    df = df_raw.copy()
+    if ciudad_sel != "Todas":
+        df = df[df['Ciudad'] == ciudad_sel]
+    if esp_sel != "Todos":
+        df = df[df['ESPECIALISTA'] == esp_sel]
+
+    # --- MÉTRICAS PRINCIPALES ---
+    c1, c2, c3 = st.columns(3)
+    
+    with c1:
+        st.metric(f"Puntos en {ciudad_sel}", f"{len(df):,}")
+    
+    with c2:
+        # Buscamos a Jorge Arrieta (con manejo de errores por si no está en la vista actual)
+        jorge_data = df_raw[df_raw['ESPECIALISTA'].str.contains("JORGE ARRIETA", case=False, na=False)]
+        st.metric("Total Jorge Arrieta", len(jorge_data))
+        
+    with c3:
+        # Buscamos tu nombre (Ajustado según el Excel)
+        tu_data = df_raw[df_raw['ESPECIALISTA'].str.contains("ALAN", case=False, na=False)]
+        st.metric("Total Alan Forero", len(tu_data))
+
+    st.divider()
+
+    # --- TABLA DE RESULTADOS ---
+    st.subheader(f"📍 Detalle de Corresponsales: {ciudad_sel}")
+    
+    # Columnas que solicitó la Directora
+    cols_interes = ['Tipo de CBs', 'Dirección', 'Ciudad', 'ESPECIALISTA
