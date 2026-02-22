@@ -24,11 +24,19 @@ URL_SHEET = f"https://docs.google.com/spreadsheets/d/1VltkgOm0rb6aWso2wuSH7kmcoH
 @st.cache_data(ttl=60)
 def cargar_datos():
     try:
-        df = pd.read_csv(URL_SHEET)
-        df.columns = df.columns.str.strip() # Limpiar espacios en encabezados
+        # Usamos on_bad_lines='skip' para que ignore filas corruptas 
+        # y engine='python' para manejar archivos grandes y complejos
+        df = pd.read_csv(URL_SHEET, on_bad_lines='skip', engine='python')
+        
+        # Limpieza extrema de columnas
+        df.columns = [str(c).strip() for c in df.columns]
+        
+        # Eliminar filas que estén completamente vacías (común en archivos grandes)
+        df = df.dropna(how='all')
+        
         return df
     except Exception as e:
-        st.error(f"Error de conexión: {e}")
+        st.error(f"Error técnico de lectura: {e}")
         return None
 
 df_raw = cargar_datos()
@@ -102,3 +110,4 @@ if df_raw is not None:
 
 else:
     st.error("Verifica el acceso al Google Sheet y los nombres de las columnas.")
+
