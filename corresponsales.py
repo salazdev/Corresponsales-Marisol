@@ -2,130 +2,133 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-# 1. CONFIGURACIÓN
-st.set_page_config(page_title="BVB - Dashboard Estratégico", layout="wide")
+# 1. CONFIGURACIÓN DE PÁGINA
+st.set_page_config(page_title="BVB - Gestión Estratégica", layout="wide")
 
-# Estilo para que las métricas se vean claras
 st.markdown("""
     <style>
-    [data-testid="stMetricValue"] { color: #0033a0 !important; font-weight: bold; font-size: 1.8rem; }
-    div[data-testid="stMetric"] { background-color: #ffffff; border-left: 5px solid #EBB932; padding: 10px; border-radius: 5px; }
+    .main { background-color: #f0f2f6; }
+    [data-testid="stMetricValue"] { color: #0033a0 !important; font-weight: bold; }
+    div[data-testid="stMetric"] { background-color: #ffffff; border-radius: 10px; border-left: 5px solid #EBB932; }
     </style>
     """, unsafe_allow_html=True)
 
 st.title("🏦 Panel de Gestión Comercial BVB")
 
-# 2. CARGA Y LIMPIEZA PROFUNDA
-@st.cache_data(ttl=600)
-def cargar_y_limpiar():
-    try:
-        # Leer archivo probando separadores comunes
+# 2. MOTOR DE CARGA ULTRA-ROBUSTO
+@st.cache_data(ttl=300)
+def cargar_datos_seguro():
+    rutas_y_formatos = [
+        {'encoding': 'utf-8', 'sep': ','},
+        {'encoding': 'latin-1', 'sep': ';'},
+        {'encoding': 'utf-16', 'sep': '\t'},
+        {'encoding': 'cp1252', 'sep': ','}
+    ]
+    
+    df = None
+    for formato in rutas_y_formatos:
         try:
-            df = pd.read_csv("datos_corresponsales.csv", sep=None, engine='python', on_bad_lines='skip')
+            df = pd.read_csv(
+                "datos_corresponsales.csv", 
+                encoding=formato['encoding'], 
+                sep=formato['sep'],
+                engine='python',
+                on_bad_lines='skip'
+            )
+            if len(df.columns) > 1: # Si detectó más de una columna, funcionó
+                break
         except:
-            df = pd.read_csv("datos_corresponsales.csv", sep=';', encoding='latin-1', on_bad_lines='skip')
+            continue
 
-        # --- SOLUCIÓN AL ERROR DE DUPLICADOS (ValueError) ---
-        new_cols = []
-        counts = {}
-        for col in df.columns:
-            c_clean = str(col).strip()
-            if c_clean in counts:
-                counts[c_clean] += 1
-                new_cols.append(f"{c_clean}_{counts[c_clean]}")
-            else:
-                counts[c_clean] = 0
-                new_cols.append(c_clean)
-        df.columns = new_cols
-
-        # Limpiar datos numéricos (Quitar $, comas y espacios)
-        for col in df.columns:
-            if any(x in col.upper() for x in ["TX", "$$", "TRANSA", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC", "ENE"]):
-                df[col] = df[col].astype(str).str.replace('$', '', regex=False).str.replace(',', '', regex=False).str.strip()
-                df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
-        
-        return df
-    except Exception as e:
-        st.error(f"Error cargando el archivo: {e}")
+    if df is None or df.empty:
         return None
 
-df = cargar_y_limpiar()
+    # --- LIMPIEZA DE COLUMNAS REPETIDAS (Evita el ValueError) ---
+    cols_limpias = []
+    seen = {}
+    for c in df.columns:
+        nombre = str(c).strip()
+        if nombre in seen:
+            seen[nombre] += 1
+            cols_limpias.append(f"{nombre}_{seen[nombre]}")
+        else:
+            seen[nombre] = 0
+            cols_limpias.append(nombre)
+    df.columns = cols_limpias
+
+    # --- LIMPIEZA DE NÚMEROS ($ y TX) ---
+    for col in df.columns:
+        if any(x in col.upper() for x in ["TX", "$$", "TRANSA", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC", "ENE"]):
+            df[col] = df[col].astype(str).str.replace('$', '', regex=False).str.replace(',', '', regex=False).str.strip()
+            df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
+    
+    return df
+
+df = cargar_datos_seguro()
 
 if df is not None:
-    # Identificar columnas clave (por si cambian de nombre)
-    col_mun = next((c for c in df.columns if "CIUDAD" in c.upper()), df.columns[1])
-    col_esp = next((c for c in df.columns if "ESPECIALISTA" in c.upper()), df.columns[3])
-    col_tx_total = next((c for c in df.columns if "TX ULTIMO SEMESTRE" in c.upper()), "Transa")
-    
-    # --- FILTROS ---
-    st.sidebar.header("🔍 Filtros de Consulta")
-    esp_sel = st.sidebar.selectbox("Especialista:", ["Todos"] + sorted(df[col_esp].unique().tolist()))
-    mun_sel = st.sidebar.selectbox("Municipio:", ["Todos"] + sorted(df[col_mun].unique().tolist()))
+    # 3. IDENTIFICACIÓN DE COLUMNAS PARA LOS DESPLEGABLES
+    col_mun = next((c for c in df.columns if "CIUDAD" in c.upper()), "Ciudad")
+    col_esp = next((c for c in df.columns if "ESPECIALISTA" in c.upper()), "ESPECIALISTA")
+    col_tx_total = next((c for c in df.columns if "TX ULTIMO SEMESTRE" in c.upper()), "Tx Ultimo Semestre")
+    col_money = next((c for c in df.columns if "ENE 2026 $$" in c.upper()), None)
 
-    # Aplicar filtros
+    # --- DESPLEGABLES COMPLETOS EN LA BARRA LATERAL ---
+    st.sidebar.header("🔍 Consultar Información")
+    
+    # Filtro Especialista
+    opciones_esp = ["TODOS LOS ESPECIALISTAS"] + sorted([str(x) for x in df[col_esp].unique() if pd.notna(x)])
+    esp_sel = st.sidebar.selectbox("Especialista Comercial:", opciones_esp)
+    
+    # Filtro Municipio
+    opciones_mun = ["TODOS LOS MUNICIPIOS"] + sorted([str(x) for x in df[col_mun].unique() if pd.notna(x)])
+    mun_sel = st.sidebar.selectbox("Municipio / Ciudad:", opciones_mun)
+    
+    # Filtro Estado
+    col_estado = next((c for c in df.columns if "ESTADO" in c.upper()), None)
+    if col_estado:
+        opciones_est = ["TODOS LOS ESTADOS"] + sorted([str(x) for x in df[col_estado].unique() if pd.notna(x)])
+        est_sel = st.sidebar.selectbox("Estado del Corresponsal:", opciones_est)
+
+    # Aplicar Filtros
     df_f = df.copy()
-    if esp_sel != "Todos": df_f = df_f[df_f[col_esp] == esp_sel]
-    if mun_sel != "Todos": df_f = df_f[df_f[col_mun] == mun_sel]
+    if esp_sel != "TODOS LOS ESPECIALISTAS":
+        df_f = df_f[df_f[col_esp] == esp_sel]
+    if mun_sel != "TODOS LOS MUNICIPIOS":
+        df_f = df_f[df_f[col_mun] == mun_sel]
+    if col_estado and est_sel != "TODOS LOS ESTADOS":
+        df_f = df_f[df_f[col_estado] == est_sel]
 
     # --- MÉTRICAS ---
-    m1, m2, m3, m4 = st.columns(4)
-    m1.metric("Puntos Red", f"{len(df_f):,}")
-    m2.metric("TX Semestre", f"{df_f[col_tx_total].sum():,.0f}")
-    
-    col_money = next((c for c in df.columns if "ENE 2026 $$" in c.upper()), df.columns[-1])
-    m3.metric("Monto Ene ($$)", f"$ {df_f[col_money].sum():,.0f}")
-    
-    col_act = next((c for c in df.columns if "TRANSA SI/NO MES" in c.upper()), None)
-    if col_act:
-        activos = len(df_f[df_f[col_act].astype(str).str.contains("Si", case=False)])
-        m4.metric("Activos", activos)
+    m1, m2, m3 = st.columns(3)
+    m1.metric("Número de Corresponsales", f"{len(df_f):,}")
+    m2.metric("Total Transacciones (Semestre)", f"{df_f[col_tx_total].sum():,.0f}")
+    if col_money:
+        m3.metric("Monto Dinero Enero 2026", f"$ {df_f[col_money].sum():,.0f}")
 
-    # --- PESTAÑAS ---
-    tab1, tab2, tab3 = st.tabs(["📉 Análisis de Tiempo", "🏆 Top 50 Clientes", "📋 Base de Datos"])
+    # --- PESTAÑAS DE ANÁLISIS ---
+    t1, t2, t3 = st.tabs(["📊 Análisis por Municipio", "🏆 Top 50 Clientes", "📅 Histórico Mensual"])
 
-    with tab1:
-        st.subheader("Análisis Semestral por Mes")
-        # Buscar columnas de meses de forma flexible
-        meses_dict = {
-            "Jul": [c for c in df.columns if "JUL" in c.upper() and "TX" in c.upper()],
-            "Ago": [c for c in df.columns if "AGO" in c.upper() and "TX" in c.upper()],
-            "Sep": [c for c in df.columns if "SEP" in c.upper() and "TX" in c.upper()],
-            "Oct": [c for c in df.columns if "OCT" in c.upper() and "TX" in c.upper()],
-            "Nov": [c for c in df.columns if "NOV" in c.upper() and "TX" in c.upper()],
-            "Dic": [c for c in df.columns if "DIC" in c.upper() and "TX" in c.upper()],
-            "Ene": [c for c in df.columns if "ENE" in c.upper() and "TX" in c.upper()]
-        }
-        
-        datos_grafico = []
-        for mes, cols in meses_dict.items():
-            if cols:
-                valor = df_f[cols[0]].sum()
-                datos_grafico.append({"Mes": mes, "Transacciones": valor})
-        
-        if datos_grafico:
-            df_g = pd.DataFrame(datos_grafico)
-            fig = px.line(df_g, x="Mes", y="Transacciones", markers=True, title="Evolución de Transacciones (Cantidad)")
-            st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.warning("No se detectaron las columnas de meses (Jul-Ene). Revisa los nombres en el Excel.")
+    with t1:
+        st.subheader("Desempeño por Ubicación Geográfica")
+        mun_data = df_f.groupby(col_mun)[col_tx_total].sum().nlargest(15).reset_index()
+        fig_mun = px.bar(mun_data, x=col_tx_total, y=col_mun, orientation='h', 
+                         title="Top Municipios con más Transacciones", color_discrete_sequence=['#0033a0'])
+        st.plotly_chart(fig_mun, use_container_width=True)
 
-        # Gráfico por Municipio
-        top_mun = df_f.groupby(col_mun)[col_tx_total].sum().nlargest(10).reset_index()
-        fig_bar = px.bar(top_mun, x=col_tx_total, y=col_mun, orientation='h', title="Top 10 Municipios que más Transan")
-        st.plotly_chart(fig_bar, use_container_width=True)
-
-    with tab2:
-        st.subheader("🏆 Ranking Top 50 Corresponsales")
-        # Mostrar donde están ubicados los mejores
+    with t2:
+        st.subheader("🏆 Ranking Top 50 Nacional")
         top_50 = df.nlargest(50, col_tx_total)
-        st.dataframe(top_50[[col_esp, col_mun, "Dirección", col_tx_total]], use_container_width=True, hide_index=True)
+        columnas_ver = [col_esp, col_mun, 'Dirección', col_tx_total]
+        columnas_ver = [c for c in columnas_ver if c in top_50.columns]
+        st.dataframe(top_50[columnas_ver], use_container_width=True, hide_index=True)
 
-    with tab3:
-        st.subheader("📋 Detalle General")
-        search = st.text_input("Buscar por palabra clave:")
-        if search:
-            df_f = df_f[df_f.astype(str).apply(lambda x: x.str.contains(search, case=False)).any(axis=1)]
-        st.dataframe(df_f, use_container_width=True, hide_index=True)
-
-else:
-    st.info("📢 Cargando datos... Asegúrate de que 'datos_corresponsales.csv' esté en GitHub.")
+    with t3:
+        st.subheader("Análisis del Último Semestre (Jul 2025 - Ene 2026)")
+        # Buscar columnas de meses dinámicamente
+        meses = ["JUL", "AGO", "SEP", "OCT", "NOV", "DIC", "ENE"]
+        datos_linea = []
+        for m in meses:
+            col_m = next((c for c in df.columns if m in c.upper() and "TX" in c.upper()), None)
+            if col_m:
+                datos_linea.append({"Mes": m, "TX": df_f[col_m
