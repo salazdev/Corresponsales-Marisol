@@ -3,10 +3,9 @@ import pandas as pd
 import plotly.express as px
 import os
 
-# 1. CONFIGURACIÓN VISUAL
+# 1. CONFIGURACIÓN VISUAL Y DE PÁGINA
 st.set_page_config(page_title="BVB - Gestión Comercial", layout="wide")
 
-# ESTILO CORREGIDO: Forzamos el color NEGRO en los títulos de las métricas
 st.markdown("""
     <style>
     .main { background-color: #f8f9fa; }
@@ -21,13 +20,12 @@ st.markdown("""
         height: 130px !important;
     }
     
-    /* TÍTULOS EN NEGRO ABSOLUTO (Líneas corregidas) */
+    /* TÍTULOS EN NEGRO ABSOLUTO */
     div[data-testid="stMetricLabel"] p { 
-        color: #000000 !important; /* Código para Negro */
+        color: #000000 !important; 
         font-size: 1.1rem !important; 
-        font-weight: 800 !important; /* Grosor máximo para legibilidad */
+        font-weight: 800 !important;
         opacity: 1 !important;
-        visibility: visible !important;
     }
     
     /* NÚMEROS EN AZUL */
@@ -41,18 +39,24 @@ st.markdown("""
 
 st.title("🏦 Panel de Gestión Comercial BVB")
 
-# 2. MOTOR DE CARGA INTELIGENTE
-@st.cache_data(ttl=30)
-def cargar_datos_con_deteccion():
-    archivos_csv = [f for f in os.listdir('.') if f.lower().endswith('.csv')]
-    if not archivos_csv: return None
+# 2. MOTOR DE CARGA CON DIAGNÓSTICO
+@st.cache_data(ttl=10)
+def cargar_datos_extremo():
+    # Listar todos los archivos para saber qué ve el servidor
+    todos_los_archivos = os.listdir('.')
+    csv_disponibles = [f for f in todos_los_archivos if f.lower().endswith('.csv')]
     
-    nombre_final = "datos_corresponsales.csv" if "datos_corresponsales.csv" in archivos_csv else archivos_csv[0]
+    if not csv_disponibles:
+        return None, todos_los_archivos
+
+    # Intentar cargar el primero que encuentre
+    archivo_a_cargar = csv_disponibles[0]
     
     for s in [';', ',', '\t']:
         try:
-            df = pd.read_csv(nombre_final, sep=s, engine='python', on_bad_lines='skip', encoding_errors='ignore')
-            if len(df.columns) > 2:
+            df = pd.read_csv(archivo_a_cargar, sep=s, engine='python', on_bad_lines='skip', encoding_errors='ignore')
+            if len(df.columns) > 1:
+                # Limpiar nombres de columnas
                 nuevos_nombres = []
                 for i, col in enumerate(df.columns):
                     nombre = str(col).upper().strip().replace('\n', ' ')
@@ -62,17 +66,20 @@ def cargar_datos_con_deteccion():
                         nuevos_nombres.append(nombre)
                 df.columns = nuevos_nombres
                 
+                # Limpiar números
                 for c in df.columns:
                     if any(x in c for x in ["TX", "$$", "ENE", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"]):
                         df[c] = df[c].astype(str).str.replace('$', '', regex=False).str.replace(',', '', regex=False).str.strip()
                         df[c] = pd.to_numeric(df[c], errors='coerce').fillna(0)
-                return df
-        except: continue
-    return None
+                return df, archivo_a_cargar
+        except:
+            continue
+    return None, todos_los_archivos
 
-df = cargar_datos_con_deteccion()
+df, info_archivo = cargar_datos_extremo()
 
 if df is not None:
+    # --- ASIGNACIÓN DE COLUMNAS ---
     def buscar_columna(keys, pos_backup):
         for k in keys:
             for c in df.columns:
@@ -87,7 +94,7 @@ if df is not None:
     c_si_no = buscar_columna(["SI/NO"], 10)
 
     # --- FILTROS ---
-    st.sidebar.header("🔍 Opciones de Filtro")
+    st.sidebar.header("🔍 Filtros")
     esp_sel = st.sidebar.selectbox("Especialista:", ["TODOS"] + sorted([str(x) for x in df[c_esp].unique() if str(x) not in ['nan', '0']]))
     mun_sel = st.sidebar.selectbox("Municipio:", ["TODOS"] + sorted([str(x) for x in df[c_mun].unique() if str(x) not in ['nan', '0']]))
 
@@ -108,7 +115,7 @@ if df is not None:
     k4.metric("Activos (Si)", activos)
 
     # --- PESTAÑAS ---
-    tab1, tab2, tab3 = st.tabs(["📊 Análisis Visual", "🏆 Ranking Top 50", "📋 Base de Datos"])
+    tab1, tab2, tab3 = st.tabs(["📊 Análisis", "🏆 Top 50", "📋 Base de Datos"])
 
     with tab1:
         izq, der = st.columns(2)
@@ -129,4 +136,6 @@ if df is not None:
     with tab3:
         st.dataframe(df_f, use_container_width=True)
 else:
-    st.error("🚨 No se encontró ningún archivo CSV.")
+    st.error("🚨 No se encontró ningún archivo CSV válido.")
+    st.warning(f"Archivos detectados en el repositorio: {info_archivo}")
+    st.info("Asegúrate de que tu archivo termine en .csv y no esté dentro de una carpeta.")
