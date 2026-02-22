@@ -25,7 +25,7 @@ st.markdown("""
         font-weight: 800 !important;
         opacity: 1 !important;
     }
-    /* NÚMEROS EN AZUL BVB */
+    /* NÚMEROS EN AZUL Banco de Bogotá */
     [data-testid="stMetricValue"] div { 
         color: #0033a0 !important; 
         font-size: 2.2rem !important; 
@@ -33,7 +33,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-st.title("🏦 Panel de Gestión Comercial BVB")
+st.title("🏦 Panel de Gestión Comercial Banco de Bogotá")
 
 # 2. CARGA Y DES-DUPLICACIÓN DE COLUMNAS
 @st.cache_data(ttl=30)
@@ -151,4 +151,5 @@ if df is not None:
 
 else:
     st.warning("⚠️ Cargando datos...")
+
 
