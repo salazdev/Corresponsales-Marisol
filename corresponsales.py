@@ -4,34 +4,36 @@ import plotly.express as px
 import os
 
 # 1. CONFIGURACIÓN VISUAL
-st.set_page_config(page_title="BVB - Gestión Comercial", layout="wide")
+st.set_page_config(page_title="Banco de Bogotá - Gestión Comercial", layout="wide")
 
 st.markdown("""
     <style>
-    .main { background-color: #f8f9fa; }
-    div[data-testid="stMetric"] { 
-        background-color: #ffffff !important; 
-        border-left: 5px solid #EBB932 !important; 
-        border-radius: 10px !important; 
+    /* 1. Fondo del panel y borde */
+    div[data-testid="stMetric"] {
+        background-color: #ffffff !important;
+        border-left: 5px solid #EBB932 !important;
+        border-radius: 10px !important;
         padding: 15px !important;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1) !important; 
-        height: 120px !important;
     }
-    /* LETRAS TÍTULOS EN NEGRO ABSOLUTO */
-    div[data-testid="stMetricLabel"] p { 
-        color: #000000 !important; 
-        font-size: 1.1rem !important; 
-        font-weight: 800 !important;
+
+    /* 2. TÍTULOS EN NEGRO (Lo que necesitas) */
+    /* Apuntamos directamente al párrafo del label */
+    [data-testid="stMetricLabel"] p {
+        color: #000000 !important; /* Negro absoluto */
+        font-weight: 800 !important; /* Grosor de letra alto */
+        font-size: 1.1rem !important;
+        opacity: 1 !important; /* Evita que se vea grisáceo */
     }
-    /* NÚMEROS EN AZUL */
-    div[data-testid="stMetricValue"] div { 
-        color: #0033a0 !important; 
-        font-size: 2.2rem !important; 
+
+    /* 3. NÚMEROS (VALORES) EN AZUL */
+    [data-testid="stMetricValue"] div {
+        color: #0033a0 !important;
+        font-weight: bold !important;
     }
     </style>
     """, unsafe_allow_html=True)
 
-st.title("🏦 Panel de Gestión Comercial BVB")
+st.title("🏦 Panel de Gestión Comercial Banco de Bogotá")
 
 # 2. CARGA Y LIMPIEZA (Adaptado a tu archivo real)
 @st.cache_data(ttl=30)
@@ -138,3 +140,4 @@ if df is not None:
 
 else:
     st.warning("⚠️ Esperando archivo 'datos_corresponsales.csv'...")
+
