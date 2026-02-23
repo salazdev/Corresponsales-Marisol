@@ -3,8 +3,14 @@ import pandas as pd
 import plotly.express as px
 import os
 
-# 1. CONFIGURACIÓN VISUAL
-st.set_page_config(page_title="Banco de Bogotá - Gestión Comercial", layout="wide")
+# 1. --- ENCABEZADO DE MARCA ESTILIZADO ---
+st.markdown("""
+    <div style="text-align: left;">
+        <h2 style="margin-bottom: 0px; color: #3A3A3A; letter-spacing: 2px;">Salaz Analytics</h2>
+        <p style="font-size: 14px; color: #00eb93; margin-top: 0px; text-transform: uppercase;">Soluciones de Inteligencia de Negocios</p>
+    </div>
+""", unsafe_allow_html=True)
+st.divider()
 
 # ESTILO: Color de letras NEGRO absoluto para títulos de métricas
 st.markdown("""
@@ -151,5 +157,6 @@ if df is not None:
 
 else:
     st.warning("⚠️ Cargando datos...")
+
 
 
