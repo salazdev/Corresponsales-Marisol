@@ -44,7 +44,7 @@ st.title("🏦 Panel de Gestión Comercial Banco de Bogotá")
 # 2. CARGA Y DES-DUPLICACIÓN DE COLUMNAS
 @st.cache_data(ttl=30)
 def cargar_y_limpiar_datos():
-    archivo = "datos_corresponsales.csv"
+    archivo = "Historico de Tx x Punto 2026 (FEB).csv"
     if not os.path.exists(archivo): return None
     
     try:
@@ -157,6 +157,7 @@ if df is not None:
 
 else:
     st.warning("⚠️ Cargando datos...")
+
 
 
 
