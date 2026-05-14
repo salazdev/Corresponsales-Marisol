@@ -44,7 +44,7 @@ st.title("🏦 Panel de Gestión Comercial Banco de Bogotá")
 # 2. CARGA Y DES-DUPLICACIÓN DE COLUMNAS
 @st.cache_data(ttl=30)
 def cargar_y_limpiar_datos():
-    archivo = "Historico_Tx_EjeCafetero_2026.csv"
+    archivo = "PUNTOS EJE CAFETERO.xlsx"
     if not os.path.exists(archivo): return None
     
     try:
