@@ -73,12 +73,8 @@ def cargar_y_limpiar_datos():
 df = cargar_y_limpiar_datos()
 
 if df is not None:
-    # Asegúrate de que estos nombres existan tal cual en tu Excel (pero en mayúsculas)
-    c_dep = "DEPARTAMENTO"
-    c_esp = "ESPECIALISTA"
-    c_mun = "CIUDAD"
-    c_tx_tot = "TX ULTIMO SEMESTRE" # <--- Verifica que en el Excel no diga "TX ÚLTIMO" (con tilde)
-    c_val_ene = "ENE 2026 $$""
+    # Borra esta línea una vez funcione:
+    st.write("Columnas detectadas:", list(df.columns))"
 
     # --- FILTROS EN CASCADA ---
     st.sidebar.header("🔍 Filtros de Gestión")
