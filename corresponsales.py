@@ -73,8 +73,16 @@ def cargar_y_limpiar_datos():
 df = cargar_y_limpiar_datos()
 
 if df is not None:
-    # Borra esta línea una vez funcione:
-    st.write("Columnas detectadas:", list(df.columns))"
+    # 1. ASIGNACIÓN DE COLUMNAS (Indispensable definir esto antes de usar los filtros)
+    # Estos nombres deben coincidir exactamente con los de tu archivo Excel
+    c_dep = "DEPARTAMENTO"
+    c_esp = "ESPECIALISTA"
+    c_mun = "CIUDAD"
+    c_tx_tot = "TX ULTIMO SEMESTRE"
+    c_val_ene = "ENE 2026 $$"
+
+    # Línea de diagnóstico temporal
+    st.write("Columnas detectadas:", list(df.columns))
 
     # --- FILTROS EN CASCADA ---
     st.sidebar.header("🔍 Filtros de Gestión")
@@ -99,11 +107,14 @@ if df is not None:
     k1, k2, k3, k4 = st.columns(4)
     
     k1.metric("Puntos Red", f"{len(df_final)}")
-    k2.metric("Cantidades (TX)", f"{df_final[c_tx_tot].sum():,.0f}")
+    
+    # Sumatoria de Cantidades
+    cant_tx = df_final[c_tx_tot].sum() if c_tx_tot in df_final.columns else 0
+    k2.metric("Cantidades (TX)", f"{cant_tx:,.0f}")
     
     # Monto en Millones
-    monto_millones = df_final[c_val_ene].sum() / 1_000_000
-    k3.metric("Monto Ene 26 (Mill)", f"$ {monto_millones:,.1f} M")
+    monto_val = df_final[c_val_ene].sum() if c_val_ene in df_final.columns else 0
+    k3.metric("Monto Ene 26 (Mill)", f"$ {monto_val / 1_000_000:,.1f} M")
     
     k4.metric("Región", dep_sel if dep_sel != "TODOS" else "Nacional")
 
@@ -138,21 +149,21 @@ if df is not None:
         with c_line:
             st.plotly_chart(px.line(df_h, x="Mes", y="Valor ($)", markers=True, title="Valores por Mes", color_discrete_sequence=['#EBB932']), use_container_width=True)
 
-    # --- TABLAS (ERROR CORREGIDO) ---
+    # --- TABLAS ---
     st.divider()
     t1, t2 = st.tabs(["🏆 Ranking Top 50", "📋 Detalle de Registros"])
     with t1:
-        # Mostramos columnas clave en el Ranking
         cols_ver = [c_dep, c_esp, c_mun, c_tx_tot, c_val_ene]
+        # Verificamos que las columnas existan antes de mostrar el ranking
+        cols_existentes = [c for c in cols_ver if c in df_final.columns]
         ranking = df_final.sort_values(c_tx_tot, ascending=False).head(50)
-        st.dataframe(ranking[cols_ver], use_container_width=True, hide_index=True)
+        st.dataframe(ranking[cols_existentes], use_container_width=True, hide_index=True)
     with t2:
-        # Esta línea ya no dará error de duplicados
         st.dataframe(df_final, use_container_width=True)
 
+    # --- PIE DE PÁGINA DE MARCA ---
+    st.markdown("---")
+    st.caption("SALAZ ANALYTICS Plataforma Inteligente de Gestión")
+
 else:
-    st.warning("⚠️ Cargando datos...")
-
-
-
-
+    st.warning("⚠️ Esperando carga de datos. Asegúrate de que el archivo Excel esté en la carpeta del proyecto.")
