@@ -45,30 +45,37 @@ st.title("🏦 Panel de Gestión Comercial Banco de Bogotá")
 @st.cache_data(ttl=30)
 def cargar_y_limpiar_datos():
     archivo = "PUNTOS EJE CAFETERO.xlsx"
-    if not os.path.exists(archivo): return None
+    if not os.path.exists(archivo): 
+        st.error(f"No se encontró el archivo: {archivo}")
+        return None
     
     try:
-        df = pd.read_csv(archivo, sep=',', engine='python', on_bad_lines='skip', encoding_errors='ignore')
+        # Detectar extensión para usar la función correcta
+        if archivo.endswith('.xlsx'):
+            df = pd.read_excel(archivo)
+        else:
+            df = pd.read_csv(archivo, sep=',', engine='python', on_bad_lines='skip', encoding_errors='ignore')
         
-        # ELIMINAR DUPLICADOS DE COLUMNAS (Solución al ValueError)
+        # ELIMINAR DUPLICADOS DE COLUMNAS Y NORMALIZAR
         cols_limpias = []
         for i, col in enumerate(df.columns):
+            # Limpiar espacios, saltos de línea y pasar a MAYÚSCULAS
             nombre = str(col).replace('\n', ' ').strip().upper()
-            if nombre in cols_limpias:
+            if nombre in cols_limpias or nombre == "":
                 cols_limpias.append(f"{nombre}_{i}")
             else:
                 cols_limpias.append(nombre)
         df.columns = cols_limpias
         
-        # Limpiar formatos de dinero y números
-        cols_numericas = [c for c in df.columns if any(x in c for x in ["TX", "$$", "TOTAL"])]
-        for c in cols_numericas:
-            df[c] = df[c].astype(str).str.replace(r'[^\d.]', '', regex=True)
-            df[c] = pd.to_numeric(df[c], errors='coerce').fillna(0)
+        # Limpiar formatos de dinero y números (solo en columnas que existan)
+        for c in df.columns:
+            if any(x in c for x in ["TX", "$$", "TOTAL"]):
+                df[c] = df[c].astype(str).str.replace(r'[^\d.]', '', regex=True)
+                df[c] = pd.to_numeric(df[c], errors='coerce').fillna(0)
             
         return df
     except Exception as e:
-        st.error(f"Error técnico: {e}")
+        st.error(f"Error técnico al cargar: {e}")
         return None
 
 df = cargar_y_limpiar_datos()
