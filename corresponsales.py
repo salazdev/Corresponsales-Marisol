@@ -45,48 +45,40 @@ st.title("🏦 Panel de Gestión Comercial Banco de Bogotá")
 @st.cache_data(ttl=30)
 def cargar_y_limpiar_datos():
     archivo = "PUNTOS EJE CAFETERO.xlsx"
-    if not os.path.exists(archivo): 
-        st.error(f"No se encontró el archivo: {archivo}")
-        return None
+    if not os.path.exists(archivo): return None
     
     try:
-        # Detectar extensión para usar la función correcta
-        if archivo.endswith('.xlsx'):
-            df = pd.read_excel(archivo)
-        else:
-            df = pd.read_csv(archivo, sep=',', engine='python', on_bad_lines='skip', encoding_errors='ignore')
+        # CAMBIO CLAVE: Leer como Excel
+        df = pd.read_excel(archivo)
         
-        # ELIMINAR DUPLICADOS DE COLUMNAS Y NORMALIZAR
-        cols_limpias = []
-        for i, col in enumerate(df.columns):
-            # Limpiar espacios, saltos de línea y pasar a MAYÚSCULAS
-            nombre = str(col).replace('\n', ' ').strip().upper()
-            if nombre in cols_limpias or nombre == "":
-                cols_limpias.append(f"{nombre}_{i}")
-            else:
-                cols_limpias.append(nombre)
-        df.columns = cols_limpias
+        # Normalización de columnas
+        df.columns = [str(c).replace('\n', ' ').strip().upper() for c in df.columns]
         
-        # Limpiar formatos de dinero y números (solo en columnas que existan)
+        # Eliminar posibles duplicados en los nombres de columnas
+        cols = pd.Series(df.columns)
+        for dup in cols[cols.duplicated()].unique():
+            cols[cols == dup] = [f"{dup}_{i}" if i != 0 else dup for i in range(sum(cols == dup))]
+        df.columns = cols
+
+        # Limpiar datos numéricos
         for c in df.columns:
             if any(x in c for x in ["TX", "$$", "TOTAL"]):
-                df[c] = df[c].astype(str).str.replace(r'[^\d.]', '', regex=True)
-                df[c] = pd.to_numeric(df[c], errors='coerce').fillna(0)
-            
+                df[c] = pd.to_numeric(df[c].astype(str).str.replace(r'[^\d.]', '', regex=True), errors='coerce').fillna(0)
+        
         return df
     except Exception as e:
-        st.error(f"Error técnico al cargar: {e}")
+        st.error(f"Error al leer el archivo: {e}")
         return None
 
 df = cargar_y_limpiar_datos()
 
 if df is not None:
-    # Identificación de columnas clave
+    # Asegúrate de que estos nombres existan tal cual en tu Excel (pero en mayúsculas)
     c_dep = "DEPARTAMENTO"
     c_esp = "ESPECIALISTA"
     c_mun = "CIUDAD"
-    c_tx_tot = "TX ULTIMO SEMESTRE"
-    c_val_ene = "ENE 2026 $$"
+    c_tx_tot = "TX ULTIMO SEMESTRE" # <--- Verifica que en el Excel no diga "TX ÚLTIMO" (con tilde)
+    c_val_ene = "ENE 2026 $$""
 
     # --- FILTROS EN CASCADA ---
     st.sidebar.header("🔍 Filtros de Gestión")
