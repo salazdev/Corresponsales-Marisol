@@ -73,6 +73,15 @@ def cargar_datos_corresponsales():
                 columnas_limpias.append(col)
         df.columns = columnas_limpias
         
+        # --- INTERVENCIÓN CRÍTICA: LIMPIEZA Y UNIFICACIÓN DE CIUDADES ---
+        col_mun = 'Ciudad' if 'Ciudad' in df.columns else df.columns[1]
+        if col_mun in df.columns:
+            # .astype(str) asegura que todo se lea como texto
+            # .str.strip() elimina espacios fantasmas al inicio o final
+            # .str.upper() convierte todo a MAYÚSCULAS para que 'Pereira' y 'PEREIRA' sean lo mismo
+            df[col_mun] = df[col_mun].astype(str).str.strip().str.upper()
+        
+        # Limpieza de columnas numéricas y financieras
         cols_num = [
             'Tx Ultimo Semestre', 'Jul 2025 TX', 'Ago 2025 TX', 'Sep 2025 TX', 
             'Oct 2025 TX', 'Nov 2025 TX', 'Dic 2025 TX', 'Ene 2026 TX',
