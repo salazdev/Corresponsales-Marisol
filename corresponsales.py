@@ -34,20 +34,31 @@ st.divider()
 def cargar_datos_corresponsales():
     try:
         if not os.path.exists("datos_corresponsales.csv"):
+            st.error("⚠️ El archivo 'datos_corresponsales.csv' no existe en la raíz del repositorio.")
             return None
             
-        # 1. Lectura del archivo base
+        # 1. Intentar lectura con punto y coma (separador común en Excel/CSV latino)
         try:
-            df = pd.read_csv("datos_corresponsales.csv", sep=',', engine='python', on_bad_lines='skip')
-            if len(df.columns) <= 1: 
+            df = pd.read_csv("datos_corresponsales.csv", sep=';', engine='python', on_bad_lines='skip', skiprows=0)
+            if len(df.columns) <= 1:
                 raise ValueError
         except:
-            df = pd.read_csv("datos_corresponsales.csv", sep=';', engine='python', on_bad_lines='skip')
+            # 2. Si falla, intentar con coma tradicional
+            try:
+                df = pd.read_csv("datos_corresponsales.csv", sep=',', engine='python', on_bad_lines='skip', skiprows=0)
+            except Exception as read_err:
+                st.error(f"Error crítico al abrir el CSV: {read_err}. Verifica que el archivo en GitHub no esté vacío.")
+                return None
+
+        # Verificar si el DataFrame realmente tiene datos y columnas
+        if df is None or df.empty or len(df.columns) == 0:
+            st.error("⚠️ El archivo CSV se leyó, pero no contiene columnas ni datos válidos. Revisa el formato.")
+            return None
         
-        # 2. Limpieza inicial de nombres de columnas
+        # 3. Limpieza inicial y remoción de columnas completamente vacías (Unnamed)
         df.columns = [str(c).strip() for c in df.columns]
         
-        # 3. INTERVENCIÓN CRÍTICA: Desduplicar nombres de columnas para evitar el error de PyArrow
+        # 4. Desduplicar nombres de columnas (Evita el error de PyArrow en st.dataframe)
         columnas_limpias = []
         conteo_columnas = {}
         for col in df.columns:
@@ -59,7 +70,7 @@ def cargar_datos_corresponsales():
                 columnas_limpias.append(col)
         df.columns = columnas_limpias
         
-        # 4. Formateo y limpieza de las columnas numéricas y financieras
+        # 5. Limpieza de columnas numéricas y de texto base
         cols_num = [
             'Tx Ultimo Semestre', 'Jul 2025 TX', 'Ago 2025 TX', 'Sep 2025 TX', 
             'Oct 2025 TX', 'Nov 2025 TX', 'Dic 2025 TX', 'Ene 2026 TX',
@@ -74,7 +85,7 @@ def cargar_datos_corresponsales():
         
         return df
     except Exception as e:
-        st.error(f"Error técnico al leer el archivo: {e}")
+        st.error(f"Error técnico general al procesar corresponsales: {e}")
         return None
 
 # 3. CARGA ULTRA RÁPIDA PARA EL NUEVO ARCHIVO DE CONVENIOS (24K+ registros)
