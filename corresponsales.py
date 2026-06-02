@@ -30,23 +30,24 @@ st.title("🏦 Gestión Integral de Corresponsalía BVB")
 st.divider()
 
 # 2. CARGA DE DATOS BLINDADA Y OPTIMIZADA (Para Corresponsales)
-@st.cache_data(ttl=3600)  # Subimos a 1 hora de caché para evitar recargas constantes
+@st.cache_data(ttl=600)  # Volvemos al tiempo original que te funcionaba bien
 def cargar_datos_corresponsales():
     try:
         if not os.path.exists("datos_corresponsales.csv"):
             return None
             
-        # Forzamos una lectura directa. Si ya sabes que tu archivo usa un separador fijo (ej. coma o punto y coma), 
-        # es mejor dejar solo uno. Aquí mantenemos tu lógica pero optimizada:
+        # Volvemos a tu lógica original exacta de lectura que ya estaba blindada
         try:
-            df = pd.read_csv("datos_corresponsales.csv", sep=',', engine='c', on_bad_lines='skip')
-            if len(df.columns) <= 1:
+            df = pd.read_csv("datos_corresponsales.csv", sep=',', engine='python', on_bad_lines='skip')
+            if len(df.columns) <= 1: # Si solo detecta una columna, el separador es incorrecto
                 raise ValueError
         except:
-            df = pd.read_csv("datos_corresponsales.csv", sep=';', engine='c', on_bad_lines='skip')
+            df = pd.read_csv("datos_corresponsales.csv", sep=';', engine='python', on_bad_lines='skip')
         
+        # Limpieza de nombres de columnas
         df.columns = [str(c).strip() for c in df.columns]
         
+        # Lista de columnas financieras y de transacciones según tu configuración
         cols_num = [
             'Tx Ultimo Semestre', 'Jul 2025 TX', 'Ago 2025 TX', 'Sep 2025 TX', 
             'Oct 2025 TX', 'Nov 2025 TX', 'Dic 2025 TX', 'Ene 2026 TX',
@@ -56,11 +57,13 @@ def cargar_datos_corresponsales():
         
         for col in cols_num:
             if col in df.columns:
+                # Quitamos símbolos de pesos, espacios y comas para que sean números reales
                 df[col] = df[col].astype(str).str.replace('$', '', regex=False).str.replace(',', '', regex=False).str.strip()
                 df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
+        
         return df
     except Exception as e:
-        st.error(f"Error técnico al leer corresponsales: {e}")
+        st.error(f"Error técnico al leer el archivo: {e}")
         return None
 
 # 3. CARGA ULTRA RÁPIDA PARA EL NUEVO ARCHIVO DE CONVENIOS (24K+ registros)
