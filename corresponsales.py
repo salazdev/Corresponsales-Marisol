@@ -100,28 +100,35 @@ def cargar_datos_corresponsales():
 # 3. CARGA ULTRA-RÁPIDA DE CONVENIOS MEDIANTE CSV
 # 3. CARGA ULTRA-RÁPIDA DE CONVENIOS MEDIANTE CSV (CON DETECCIÓN INTELIGENTE)
 # 3. CARGA ULTRA-RÁPIDA DE CONVENIOS MEDIANTE CSV (CON DETECCIÓN INTELIGENTE)
+# 3. CARGA DE CONVENIOS HÍBRIDA (MÁXIMA VELOCIDAD + RESPALDO SEGURO)
 @st.cache_data(ttl=3600)
 def cargar_datos_convenios():
     archivo_csv = "convenios_activos.csv"
+    archivo_excel = "listado-de-convenios-activos-corresponsales mayo 2.xlsx"
     
+    # Intenta primero con el CSV optimizado para máxima velocidad (0.2 segundos)
     if os.path.exists(archivo_csv):
         try:
-            # 1. Intentar lectura estándar con separación por comas
             df_conv = pd.read_csv(archivo_csv, sep=',', encoding='utf-8', on_bad_lines='skip', low_memory=False)
-            
-            # 2. Si detecta una sola columna, reintenta con punto y coma y codificación latina
             if len(df_conv.columns) <= 1:
                 df_conv = pd.read_csv(archivo_csv, sep=';', encoding='latin-1', on_bad_lines='skip', low_memory=False)
             
-            # Limpiar espacios fijos en los nombres de las columnas y pasarlos a MAYÚSCULAS
             df_conv.columns = [str(c).strip().upper() for c in df_conv.columns]
-            
+            return df_conv
+        except:
+            pass
+
+    # SI EL CSV FALLA O NO EXISTE: Abre el Excel original para que la app no se detenga
+    if os.path.exists(archivo_excel):
+        try:
+            df_conv = pd.read_excel(archivo_excel, sheet_name="Convenios", header=1)
+            df_conv.columns = [str(c).strip().upper() for c in df_conv.columns]
             return df_conv
         except Exception as e:
-            st.error(f"Error al leer convenios_activos.csv: {e}")
+            st.error(f"Error técnico al procesar el Excel de Convenios: {e}")
             return None
+            
     return None
-
 
 # --- MENÚ LATERAL DE NAVEGACIÓN ---
 st.sidebar.title("Navegación")
