@@ -148,6 +148,60 @@ if modulo_seleccionado == "📊 Dashboard Corresponsales":
 # ==========================================
 # MÓDULO 2: NUEVO ARCHIVO (CONVENIOS) OPTIMIZADO
 # ==========================================
+# --- CUERPO DEL DASHBOARD (VERSION LINEAL SIN TABS) ---
+        st.subheader("Análisis de Transacciones por Mes (Jul 2025 - Ene 2026)")
+        meses_cols = ['Jul 2025 TX', 'Ago 2025 TX', 'Sep 2025 TX', 'Oct 2025 TX', 'Nov 2025 TX', 'Dic 2025 TX', 'Ene 2026 TX']
+        meses_existentes = [m for m in meses_cols if m in df_f.columns]
+        
+        if meses_existentes:
+            data_meses = df_f[meses_existentes].sum().reset_index()
+            data_meses.columns = ['Mes', 'Transacciones']
+            
+            c1, c2 = st.columns([2, 1])
+            with c1:
+                fig_line = px.line(data_meses, x='Mes', y='Transacciones', markers=True, 
+                                   title="Evolución de la Red", color_discrete_sequence=['#0033a0'])
+                st.plotly_chart(fig_line, use_container_width=True)
+            with c2:
+                mun_data = df_f.groupby(col_mun)[tx_sem].sum().nlargest(10).reset_index()
+                fig_bar = px.bar(mun_data, x=tx_sem, y=col_mun, orientation='h', 
+                                 title="Top 10 Municipios", color_discrete_sequence=['#EBB932'])
+                st.plotly_chart(fig_bar, use_container_width=True)
+        else:
+            st.warning("No se encontraron las columnas mensuales de transacciones.")
+
+        st.subheader("🏆 Top 50 Corresponsales con Mejor Desempeño")
+        top_50 = df.nlargest(50, tx_sem)
+        cols_ranking = [col_esp, col_mun, 'Dirección', tx_sem, 'Ene 2026 TX', 'Estado']
+        cols_show = [c for c in cols_ranking if c in top_50.columns]
+        st.dataframe(top_50[cols_show], use_container_width=True, hide_index=True)
+
+        # COLLAPSIBLE / SECCIÓN DE BASE DE DATOS REPARADA
+        st.subheader("📋 Base de Datos Completa")
+        txt_busqueda = st.text_input("Buscar por dirección o nombre específico:")
+        
+        df_view = df_f.copy()
+        if txt_busqueda:
+            # Buscamos de manera inteligente y rápida por texto para evitar que se rompa
+            busqueda_str = str(txt_busqueda).lower()
+            
+            # Detectamos dinámicamente las columnas de texto de tu archivo
+            col_dir = 'Dirección' if 'Dirección' in df_view.columns else df_view.columns[2]
+            col_nom = 'Nombre' if 'Nombre' in df_view.columns else df_view.columns[0]
+            
+            df_view = df_view[
+                df_view[col_dir].astype(str).str.lower().str.contains(busqueda_str) |
+                df_view[col_nom].astype(str).str.lower().str.contains(busqueda_str)
+            ]
+        
+        st.write(f"Mostrando {len(df_view)} registros")
+        
+        # Muestra la información de manera segura
+        if not df_view.empty:
+            st.dataframe(df_view, use_container_width=True, hide_index=True)
+        else:
+            st.info("🔍 No se encontraron registros que coincidan con la búsqueda.")
+
 elif modulo_seleccionado == "📄 Buscador de Convenios":
     st.header("📄 Consulta de Convenios Activos para Recaudo")
     
