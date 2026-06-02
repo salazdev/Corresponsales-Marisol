@@ -138,20 +138,37 @@ if modulo_seleccionado == "📊 Dashboard Corresponsales":
         if ciu_sel != "Todos":
             df_f = df_f[df_f[col_mun] == ciu_sel]
 
-        # MÓDULO DE KPI'S
+        # --- MÉTRICAS DE ALTO NIVEL CORREGIDAS ---
         m1, m2, m3, m4 = st.columns(4)
-        m1.metric("Corresponsales", f"{len(df_f):,}")
         
+        # 1. Cuadro de Corresponsales Totales
+        m1.metric(
+            label="👥 Total Corresponsales", 
+            value=f"{len(df_f):,}"
+        )
+        
+        # 2. Cuadro de Transacciones Semestrales
         tx_sem = 'Tx Ultimo Semestre' if 'Tx Ultimo Semestre' in df_f.columns else 'Transa'
         tx_sum_val = pd.to_numeric(df_f[tx_sem], errors='coerce').fillna(0).sum()
-        m2.metric("TX Total Semestre", f"{tx_sum_val:,.0f}")
+        m2.metric(
+            label="📊 TX Total Semestre", 
+            value=f"{tx_sum_val:,.0f}"
+        )
         
+        # 3. Cuadro de Puntos Activos
         activos = len(df_f[df_f['Transa si/no MES'] == 'Si']) if 'Transa si/no MES' in df_f.columns else 0
-        m3.metric("Puntos Activos", f"{activos:,}")
+        m3.metric(
+            label="✅ Puntos Activos", 
+            value=f"{activos:,}"
+        )
         
+        # 4. Cuadro de Volumen de Dinero de Enero
         dinero_ene = 'Ene 2026 $$' if 'Ene 2026 $$' in df_f.columns else df_f.columns[-1]
         dinero_sum_val = pd.to_numeric(df_f[dinero_ene], errors='coerce').fillna(0).sum()
-        m4.metric("Volumen Ene ($$)", f"$ {dinero_sum_val:,.0f}")
+        m4.metric(
+            label="💰 Volumen Ene ($$)", 
+            value=f"$ {dinero_sum_val:,.0f}"
+        ))
 
         # CUERPO GRÁFICO LINEAL
         st.subheader("Análisis de Transacciones por Mes (Jul 2025 - Ene 2026)")
