@@ -16,11 +16,13 @@ st.markdown("""
 st.divider()
 
 # --- FUNCIONES DE CARGA DE DATOS ---
-@st.cache_data
-def cargar_datos_principales():
-    # Tu lógica actual para cargar PUNTOS EJE CAFETERO, csv, etc.
-    if os.path.exists("datos_corresponsales.csv"):
-        return pd.read_csv("datos_corresponsales.csv")
+@st.cache_data(ttl=3600)  # Esto guarda el archivo en la memoria caché por una hora para que NO se vuelva a leer en cada clic
+def cargar_convenios_optimizado():
+    archivo_csv = "convenios_activos.csv"
+    if os.path.exists(archivo_csv):
+        # Al ser CSV con caché, la lectura pasará de 60 segundos a menos de 0.5 segundos
+        df_conv = pd.read_csv(archivo_csv, sep=",", encoding="latin-1")
+        return df_conv
     return None
 
 @st.cache_data
