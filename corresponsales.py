@@ -3,18 +3,33 @@ import pandas as pd
 import plotly.express as px
 import os
 
-# 1. CONFIGURACIÓN E IDENTIDAD VISUAL
+# 1. CONFIGURACIÓN E IDENTIDAD VISUAL (ESTILOS CORREGIDOS PARA TEXTO INVISIBLE)
 st.set_page_config(page_title="BVB - Gestión Estratégica", layout="wide")
 
 st.markdown("""
     <style>
     .main { background-color: #f4f7f9; }
-    [data-testid="stMetricValue"] { color: #0033a0 !important; font-weight: bold; }
+    
+    /* Fuerza el color del número (azul corporativo) */
+    [data-testid="stMetricValue"] { 
+        color: #0033a0 !important; 
+        font-weight: bold !important; 
+    }
+    
+    /* Fuerza el color del título del cuadro (negro/gris oscuro visible) */
+    [data-testid="stMetricLabel"] { 
+        color: #222222 !important; 
+        font-weight: 600 !important;
+        font-size: 15px !important;
+    }
+    
+    /* Configuración estructural de las tarjetas */
     div[data-testid="stMetric"] {
-        background-color: #ffffff;
-        border-left: 5px solid #EBB932;
-        box-shadow: 2px 2px 10px rgba(0,0,0,0.1);
-        border-radius: 5px;
+        background-color: #ffffff !important;
+        border-left: 5px solid #EBB932 !important;
+        box-shadow: 2px 2px 10px rgba(0,0,0,0.1) !important;
+        border-radius: 5px !important;
+        padding: 10px 15px !important;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -136,7 +151,7 @@ if modulo_seleccionado == "📊 Dashboard Corresponsales":
         if ciu_sel != "Todos":
             df_f = df_f[df_f[col_mun] == ciu_sel]
 
-        # --- MÉTRICAS DE ALTO NIVEL CORREGIDAS ---
+        # --- MÉTRICAS DE ALTO NIVEL CON PARÁMETROS EXPLÍCITOS ---
         m1, m2, m3, m4 = st.columns(4)
         m1.metric(label="👥 Total Corresponsales", value=f"{len(df_f):,}")
         
@@ -176,60 +191,3 @@ if modulo_seleccionado == "📊 Dashboard Corresponsales":
         st.subheader("🏆 Top 50 Corresponsales con Mejor Desempeño")
         top_50 = df.nlargest(50, tx_sem)
         cols_ranking = [col_esp, col_mun, 'Dirección', tx_sem, 'Ene 2026 TX', 'Estado']
-        cols_show = [c for c in cols_ranking if c in top_50.columns]
-        st.dataframe(top_50[cols_show], use_container_width=True, hide_index=True)
-
-        # --- SECCIÓN DE BASE DE DATOS COMPLETA REPARADA ---
-        st.subheader("📋 Base de Datos Completa")
-        txt_busqueda = st.text_input("Buscar por dirección o nombre específico:")
-        
-        df_view = df_f.copy()
-        if txt_busqueda:
-            busqueda_str = str(txt_busqueda).lower()
-            col_dir = 'Dirección' if 'Dirección' in df_view.columns else df_view.columns[2]
-            col_nom = 'Nombre' if 'Nombre' in df_view.columns else df_view.columns[0]
-            
-            df_view = df_view[
-                df_view[col_dir].astype(str).str.lower().str.contains(busqueda_str) |
-                df_view[col_nom].astype(str).str.lower().str.contains(busqueda_str)
-            ]
-        
-        st.write(f"Mostrando {len(df_view)} registros")
-        if not df_view.empty:
-            st.dataframe(df_view, use_container_width=True, hide_index=True)
-        else:
-            st.info("🔍 No se encontraron registros que coincidan con la búsqueda.")
-            
-    else:
-        st.info("📢 Instrucciones: Sube el archivo 'datos_corresponsales.csv' a la raíz de tu repositorio en GitHub para activar el Panel.")
-
-
-# ==========================================
-# MÓDULO 2: BUSCADOR DE CONVENIOS
-# ==========================================
-elif modulo_seleccionado == "📄 Buscador de Convenios":
-    st.header("📄 Consulta de Convenios Activos para Recaudo")
-    
-    if df_convenios is not None:
-        busqueda = st.text_input("🔍 Buscar convenio en tiempo real (por Empresa, Convenio o Categoría):")
-        
-        df_filtrado = df_convenios.copy()
-        if busqueda:
-            busqueda_str = str(busqueda).lower()
-            df_filtrado = df_convenios[
-                df_convenios['EMPRESA'].astype(str).str.lower().str.contains(busqueda_str) |
-                df_convenios['CONVENIO'].astype(str).str.lower().str.contains(busqueda_str) |
-                df_convenios['CATEGORIA'].astype(str).str.lower().str.contains(busqueda_str)
-            ]
-        
-        c1, c2 = st.columns(2)
-        c1.metric("Total Convenios Cargados", f"{len(df_convenios):,}")
-        c2.metric("Resultados Encontrados", f"{len(df_filtrado):,}")
-        
-        st.dataframe(df_filtrado, use_container_width=True, hide_index=True)
-    else:
-        st.error("⚠️ No se encontró el listado de convenios. Sube 'listado-de-convenios-activos-corresponsales mayo 2.xlsx' a tu GitHub.")
-
-# PIE DE PÁGINA CORPORATIVO
-st.markdown("---")
-st.caption("SALAZ ANALYTICS | Gestión de Datos en Tiempo Real")
