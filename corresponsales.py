@@ -99,6 +99,7 @@ def cargar_datos_corresponsales():
 
 # 3. CARGA ULTRA-RÁPIDA DE CONVENIOS MEDIANTE CSV
 # 3. CARGA ULTRA-RÁPIDA DE CONVENIOS MEDIANTE CSV (CON DETECCIÓN INTELIGENTE)
+# 3. CARGA ULTRA-RÁPIDA DE CONVENIOS MEDIANTE CSV (CON DETECCIÓN INTELIGENTE)
 @st.cache_data(ttl=3600)
 def cargar_datos_convenios():
     archivo_csv = "convenios_activos.csv"
