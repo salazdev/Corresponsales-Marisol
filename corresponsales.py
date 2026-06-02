@@ -30,24 +30,36 @@ st.title("🏦 Gestión Integral de Corresponsalía BVB")
 st.divider()
 
 # 2. CARGA DE DATOS BLINDADA Y OPTIMIZADA (Para Corresponsales)
-@st.cache_data(ttl=600)  # Volvemos al tiempo original que te funcionaba bien
+@st.cache_data(ttl=600)
 def cargar_datos_corresponsales():
     try:
         if not os.path.exists("datos_corresponsales.csv"):
             return None
             
-        # Volvemos a tu lógica original exacta de lectura que ya estaba blindada
+        # 1. Lectura del archivo base
         try:
             df = pd.read_csv("datos_corresponsales.csv", sep=',', engine='python', on_bad_lines='skip')
-            if len(df.columns) <= 1: # Si solo detecta una columna, el separador es incorrecto
+            if len(df.columns) <= 1: 
                 raise ValueError
         except:
             df = pd.read_csv("datos_corresponsales.csv", sep=';', engine='python', on_bad_lines='skip')
         
-        # Limpieza de nombres de columnas
+        # 2. Limpieza inicial de nombres de columnas
         df.columns = [str(c).strip() for c in df.columns]
         
-        # Lista de columnas financieras y de transacciones según tu configuración
+        # 3. INTERVENCIÓN CRÍTICA: Desduplicar nombres de columnas para evitar el error de PyArrow
+        columnas_limpias = []
+        conteo_columnas = {}
+        for col in df.columns:
+            if col in conteo_columnas:
+                conteo_columnas[col] += 1
+                columnas_limpias.append(f"{col}.{conteo_columnas[col]}")
+            else:
+                conteo_columnas[col] = 0
+                columnas_limpias.append(col)
+        df.columns = columnas_limpias
+        
+        # 4. Formateo y limpieza de las columnas numéricas y financieras
         cols_num = [
             'Tx Ultimo Semestre', 'Jul 2025 TX', 'Ago 2025 TX', 'Sep 2025 TX', 
             'Oct 2025 TX', 'Nov 2025 TX', 'Dic 2025 TX', 'Ene 2026 TX',
@@ -57,7 +69,6 @@ def cargar_datos_corresponsales():
         
         for col in cols_num:
             if col in df.columns:
-                # Quitamos símbolos de pesos, espacios y comas para que sean números reales
                 df[col] = df[col].astype(str).str.replace('$', '', regex=False).str.replace(',', '', regex=False).str.strip()
                 df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
         
