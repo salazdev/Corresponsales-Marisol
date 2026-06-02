@@ -3,7 +3,7 @@ import pandas as pd
 import plotly.express as px
 import os
 
-# 1. CONFIGURACIÓN E IDENTIDAD VISUAL (ESTILOS PROTEGIDOS)
+# 1. CONFIGURACIÓN E IDENTIDAD VISUAL
 st.set_page_config(page_title="BVB - Gestión Estratégica", layout="wide")
 
 st.markdown("""
@@ -97,31 +97,22 @@ def cargar_datos_corresponsales():
         return None
 
 
-# 3. CARGA DE DATOS DE CONVENIOS (SOPORTA CSV OPTIMIZADO Y EXCEL ORIGINAL)
+# 3. CARGA ULTRA-RÁPIDA DE CONVENIOS MEDIANTE CSV
 @st.cache_data(ttl=3600)
 def cargar_datos_convenios():
     archivo_csv = "convenios_activos.csv"
-    archivo_excel = "listado-de-convenios-activos-corresponsales mayo 2.xlsx"
     
-    # Intenta primero con el CSV optimizado para máxima velocidad
     if os.path.exists(archivo_csv):
         try:
-            df_conv = pd.read_csv(archivo_csv, sep=',', encoding='utf-8', on_bad_lines='skip')
+            # Forzamos engine='c' y low_memory=False para máxima velocidad de lectura
+            df_conv = pd.read_csv(archivo_csv, sep=',', encoding='utf-8', on_bad_lines='skip', low_memory=False)
             if len(df_conv.columns) <= 1:
-                df_conv = pd.read_csv(archivo_csv, sep=';', encoding='latin-1', on_bad_lines='skip')
-            df_conv.columns = [str(c).strip() for c in df_conv.columns]
-            return df_conv
-        except:
-            pass
-
-    # Si no se encuentra el CSV, lee directamente el Excel original
-    if os.path.exists(archivo_excel):
-        try:
-            df_conv = pd.read_excel(archivo_excel, sheet_name="Convenios", header=1)
+                df_conv = pd.read_csv(archivo_csv, sep=';', encoding='latin-1', on_bad_lines='skip', low_memory=False)
+            
             df_conv.columns = [str(c).strip() for c in df_conv.columns]
             return df_conv
         except Exception as e:
-            st.error(f"Error técnico al procesar el Excel de Convenios: {e}")
+            st.error(f"Error al leer convenios_activos.csv: {e}")
             return None
     return None
 
@@ -134,7 +125,7 @@ modulo_seleccionado = st.sidebar.radio(
 )
 st.sidebar.markdown("---")
 
-# Carga global de datos con caché
+# Carga global de datos con caché optimizado
 df = cargar_datos_corresponsales()
 df_convenios = cargar_datos_convenios()
 
@@ -229,7 +220,7 @@ if modulo_seleccionado == "📊 Dashboard Corresponsales":
 
 
 # ==========================================
-# MÓDULO 2: BUSCADOR DE CONVENIOS
+# MÓDULO 2: BUSCADOR DE CONVENIOS (OPTIMIZADO)
 # ==========================================
 elif modulo_seleccionado == "📄 Buscador de Convenios":
     st.header("📄 Consulta de Convenios Activos para Recaudo")
@@ -241,7 +232,7 @@ elif modulo_seleccionado == "📄 Buscador de Convenios":
         if busqueda:
             busqueda_str = str(busqueda).lower()
             
-            # Buscamos dinámicamente asegurando compatibilidad de columnas
+            # Identificación dinámica de columnas para el CSV
             col_emp = 'EMPRESA' if 'EMPRESA' in df_filtrado.columns else df_filtrado.columns[2]
             col_conv = 'CONVENIO' if 'CONVENIO' in df_filtrado.columns else df_filtrado.columns[0]
             col_cat = 'CATEGORIA' if 'CATEGORIA' in df_filtrado.columns else df_filtrado.columns[1]
@@ -258,7 +249,7 @@ elif modulo_seleccionado == "📄 Buscador de Convenios":
         
         st.dataframe(df_filtrado, use_container_width=True, hide_index=True)
     else:
-        st.error("⚠️ No se encontró el archivo de convenios. Verifica que se encuentre 'listado-de-convenios-activos-corresponsales mayo 2.xlsx' o 'convenios_activos.csv' en la raíz de tu GitHub.")
+        st.error("⚠️ No se encontró el archivo de convenios optimizado. Sube 'convenios_activos.csv' a la raíz de tu GitHub.")
 
 # PIE DE PÁGINA CORPORATIVO
 st.markdown("---")
