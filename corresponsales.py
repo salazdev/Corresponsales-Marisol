@@ -41,7 +41,7 @@ st.markdown("""
         <p style="font-size: 14px; color: #EBB932; margin-top: 0px; text-transform: uppercase; font-weight: bold;">Plataforma Inteligente de Gestión</p>
     </div>
 """, unsafe_allow_html=True)
-st.title("🏦 Gestión Integral de Corresponsalía BVB")
+st.title("Gestión Integral de Corresponsales")
 st.divider()
 
 
