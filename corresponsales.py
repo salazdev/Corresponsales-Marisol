@@ -19,7 +19,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# ENCABEZADO DE MARCA EN LUGAR DE TÍTULO PLANO
+# IDENTIDAD VISUAL - SALAZ ANALYTICS
 st.markdown("""
     <div style="text-align: left;">
         <h2 style="margin-bottom: 0px; color: #0033a0; letter-spacing: 2px; font-weight: bold;">SALAZ ANALYTICS</h2>
@@ -29,36 +29,26 @@ st.markdown("""
 st.title("🏦 Gestión Integral de Corresponsalía BVB")
 st.divider()
 
-# 2. CARGA DE DATOS BLINDADA Y OPTIMIZADA (Para Corresponsales)
+
+# 2. CARGA DE DATOS ORIGINAL DE CORRESPONSALES (BLINDADA)
 @st.cache_data(ttl=600)
 def cargar_datos_corresponsales():
     try:
         if not os.path.exists("datos_corresponsales.csv"):
-            st.error("⚠️ El archivo 'datos_corresponsales.csv' no existe en la raíz del repositorio.")
             return None
             
-        # 1. Intentar lectura con punto y coma (separador común en Excel/CSV latino)
+        # Intenta leer primero con coma, si falla pasa a punto y coma (Tu lógica original)
         try:
-            df = pd.read_csv("datos_corresponsales.csv", sep=';', engine='python', on_bad_lines='skip', skiprows=0)
-            if len(df.columns) <= 1:
+            df = pd.read_csv("datos_corresponsales.csv", sep=',', engine='python', on_bad_lines='skip')
+            if len(df.columns) <= 1: 
                 raise ValueError
         except:
-            # 2. Si falla, intentar con coma tradicional
-            try:
-                df = pd.read_csv("datos_corresponsales.csv", sep=',', engine='python', on_bad_lines='skip', skiprows=0)
-            except Exception as read_err:
-                st.error(f"Error crítico al abrir el CSV: {read_err}. Verifica que el archivo en GitHub no esté vacío.")
-                return None
-
-        # Verificar si el DataFrame realmente tiene datos y columnas
-        if df is None or df.empty or len(df.columns) == 0:
-            st.error("⚠️ El archivo CSV se leyó, pero no contiene columnas ni datos válidos. Revisa el formato.")
-            return None
+            df = pd.read_csv("datos_corresponsales.csv", sep=';', engine='python', on_bad_lines='skip')
         
-        # 3. Limpieza inicial y remoción de columnas completamente vacías (Unnamed)
+        # Limpieza inicial de nombres de columnas
         df.columns = [str(c).strip() for c in df.columns]
         
-        # 4. Desduplicar nombres de columnas (Evita el error de PyArrow en st.dataframe)
+        # ELIMINACIÓN DE DUPLICADOS EN COLUMNAS (Evita que PyArrow rompa st.dataframe)
         columnas_limpias = []
         conteo_columnas = {}
         for col in df.columns:
@@ -70,7 +60,7 @@ def cargar_datos_corresponsales():
                 columnas_limpias.append(col)
         df.columns = columnas_limpias
         
-        # 5. Limpieza de columnas numéricas y de texto base
+        # Lista de columnas financieras y de transacciones según tu configuración
         cols_num = [
             'Tx Ultimo Semestre', 'Jul 2025 TX', 'Ago 2025 TX', 'Sep 2025 TX', 
             'Oct 2025 TX', 'Nov 2025 TX', 'Dic 2025 TX', 'Ene 2026 TX',
@@ -85,55 +75,49 @@ def cargar_datos_corresponsales():
         
         return df
     except Exception as e:
-        st.error(f"Error técnico general al procesar corresponsales: {e}")
+        st.error(f"Error técnico al leer el archivo de corresponsales: {e}")
         return None
 
-# 3. CARGA ULTRA RÁPIDA PARA EL NUEVO ARCHIVO DE CONVENIOS (24K+ registros)
+
+# 3. CARGA DE DATOS DEL NUEVO ARCHIVO DE CONVENIOS (EXCEL)
 @st.cache_data(ttl=3600)
 def cargar_datos_convenios():
-    """
-    Carga el listado de convenios directamente desde el archivo Excel de GitHub.
-    """
     archivo_excel = "listado-de-convenios-activos-corresponsales mayo 2.xlsx"
-    
     if os.path.exists(archivo_excel):
         try:
-            # header=1 le dice a Python que ignore la fila del título 
-            # y use la fila de (ESTADO, NIT, EMPRESA...) como las columnas reales.
+            # Saltamos la primera fila de título general usando header=1
             df_conv = pd.read_excel(archivo_excel, sheet_name="Convenios", header=1)
-            
-            # Limpiamos espacios en blanco en los nombres de las columnas por seguridad
             df_conv.columns = [str(c).strip() for c in df_conv.columns]
             return df_conv
         except Exception as e:
-            st.error(f"Error al procesar el archivo Excel: {e}")
+            st.error(f"Error técnico al procesar el Excel de Convenios: {e}")
             return None
-            
     return None
 
 
-# --- MENÚ DE NAVEGACIÓN EN LA BARRA LATERAL ---
+# --- MENÚ LATERAL DE NAVEGACIÓN ---
 st.sidebar.title("Navegación")
 modulo_seleccionado = st.sidebar.radio("Seleccione el Módulo:", ["📊 Dashboard Corresponsales", "📄 Buscador de Convenios"])
 st.sidebar.markdown("---")
 
-# Carga en memoria en paralelo usando los cachés independientes
+# Carga de las bases de datos controladas por Caché
 df = cargar_datos_corresponsales()
 df_convenios = cargar_datos_convenios()
 
 
 # ==========================================
-# MÓDULO 1: TU DASHBOARD ORIGINAL
+# MÓDULO 1: DASHBOARD ORIGINAL DE CORRESPONSALES
 # ==========================================
 if modulo_seleccionado == "📊 Dashboard Corresponsales":
     if df is not None:
-        # --- FILTROS LATERALES (Solo se muestran en este módulo) ---
         st.sidebar.header("🔍 Filtros de Gestión")
         
+        # Filtro Especialista
         col_esp = 'ESPECIALISTA' if 'ESPECIALISTA' in df.columns else df.columns[0]
         lista_esp = ["Todos"] + sorted(df[col_esp].dropna().unique().tolist())
         esp_sel = st.sidebar.selectbox("Especialista Comercial:", lista_esp)
         
+        # Filtro Municipio
         col_mun = 'Ciudad' if 'Ciudad' in df.columns else df.columns[1]
         lista_ciu = ["Todos"] + sorted(df[col_mun].dropna().unique().tolist())
         ciu_sel = st.sidebar.selectbox("Municipio / Ciudad:", lista_ciu)
@@ -150,27 +134,17 @@ if modulo_seleccionado == "📊 Dashboard Corresponsales":
         m1.metric("Corresponsales", f"{len(df_f):,}")
         
         tx_sem = 'Tx Ultimo Semestre' if 'Tx Ultimo Semestre' in df_f.columns else 'Transa'
-        
-        # Aseguramos que los valores sean numéricos antes de sumar
         tx_sum_val = pd.to_numeric(df_f[tx_sem], errors='coerce').fillna(0).sum()
         m2.metric("TX Total Semestre", f"{tx_sum_val:,.0f}")
         
         activos = len(df_f[df_f['Transa si/no MES'] == 'Si']) if 'Transa si/no MES' in df_f.columns else 0
         m3.metric("Puntos Activos", f"{activos:,}")
         
-        # BLINDAJE DE LA MÉTRICA DE DINERO (Línea 137)
         dinero_ene = 'Ene 2026 $$' if 'Ene 2026 $$' in df_f.columns else df_f.columns[-1]
-        
-        # Forzamos la conversión a número, los errores se vuelven 0 para que no rompan la app
         dinero_sum_val = pd.to_numeric(df_f[dinero_ene], errors='coerce').fillna(0).sum()
-        
         m4.metric("Volumen Ene ($$)", f"$ {dinero_sum_val:,.0f}")
 
-
-# ==========================================
-# MÓDULO 2: NUEVO ARCHIVO (CONVENIOS) OPTIMIZADO
-# ==========================================
-# --- CUERPO DEL DASHBOARD (VERSION LINEAL SIN TABS) ---
+        # --- CUERPO GRÁFICO (Estructura Lineal Original) ---
         st.subheader("Análisis de Transacciones por Mes (Jul 2025 - Ene 2026)")
         meses_cols = ['Jul 2025 TX', 'Ago 2025 TX', 'Sep 2025 TX', 'Oct 2025 TX', 'Nov 2025 TX', 'Dic 2025 TX', 'Ene 2026 TX']
         meses_existentes = [m for m in meses_cols if m in df_f.columns]
@@ -198,16 +172,13 @@ if modulo_seleccionado == "📊 Dashboard Corresponsales":
         cols_show = [c for c in cols_ranking if c in top_50.columns]
         st.dataframe(top_50[cols_show], use_container_width=True, hide_index=True)
 
-        # COLLAPSIBLE / SECCIÓN DE BASE DE DATOS REPARADA
+        # SECCIÓN DE BASE DE DATOS COMPLETA REPARADA
         st.subheader("📋 Base de Datos Completa")
         txt_busqueda = st.text_input("Buscar por dirección o nombre específico:")
         
         df_view = df_f.copy()
         if txt_busqueda:
-            # Buscamos de manera inteligente y rápida por texto para evitar que se rompa
             busqueda_str = str(txt_busqueda).lower()
-            
-            # Detectamos dinámicamente las columnas de texto de tu archivo
             col_dir = 'Dirección' if 'Dirección' in df_view.columns else df_view.columns[2]
             col_nom = 'Nombre' if 'Nombre' in df_view.columns else df_view.columns[0]
             
@@ -217,13 +188,18 @@ if modulo_seleccionado == "📊 Dashboard Corresponsales":
             ]
         
         st.write(f"Mostrando {len(df_view)} registros")
-        
-        # Muestra la información de manera segura
         if not df_view.empty:
             st.dataframe(df_view, use_container_width=True, hide_index=True)
         else:
             st.info("🔍 No se encontraron registros que coincidan con la búsqueda.")
+            
+    else:
+        st.info("📢 Instrucciones: Sube el archivo 'datos_corresponsales.csv' a la raíz de tu repositorio en GitHub para activar el Panel.")
 
+
+# ==========================================
+# MÓDULO 2: BUSCADOR INTERACTIVO DE CONVENIOS
+# ==========================================
 elif modulo_seleccionado == "📄 Buscador de Convenios":
     st.header("📄 Consulta de Convenios Activos para Recaudo")
     
@@ -232,7 +208,6 @@ elif modulo_seleccionado == "📄 Buscador de Convenios":
         
         df_filtrado = df_convenios.copy()
         if busqueda:
-            # Optimizamos la búsqueda para que no congele la app con las 24K filas
             busqueda_str = str(busqueda).lower()
             df_filtrado = df_convenios[
                 df_convenios['EMPRESA'].astype(str).str.lower().str.contains(busqueda_str) |
@@ -240,15 +215,13 @@ elif modulo_seleccionado == "📄 Buscador de Convenios":
                 df_convenios['CATEGORIA'].astype(str).str.lower().str.contains(busqueda_str)
             ]
         
-        # Indicadores resumidos
         c1, c2 = st.columns(2)
         c1.metric("Total Convenios Cargados", f"{len(df_convenios):,}")
         c2.metric("Resultados Encontrados", f"{len(df_filtrado):,}")
         
-        # Mostrar tabla paginada e inteligente
         st.dataframe(df_filtrado, use_container_width=True, hide_index=True)
     else:
-        st.error("⚠️ No se encontró el listado de convenios. Sube 'convenios_activos.csv' o el archivo Excel a tu GitHub.")
+        st.error("⚠️ No se encontró el listado de convenios. Sube 'listado-de-convenios-activos-corresponsales mayo 2.xlsx' a tu GitHub.")
 
 # PIE DE PÁGINA CORPORATIVO
 st.markdown("---")
