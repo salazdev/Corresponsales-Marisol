@@ -46,7 +46,7 @@ def cargar_datos_corresponsales():
         
         df.columns = [str(c).strip() for c in df.columns]
         
-        # Desduplicar columnas para PyArrow
+        # Desduplicar columnas para PyArrow en st.dataframe
         columnas_limpias = []
         conteo_columnas = {}
         for col in df.columns:
@@ -102,17 +102,15 @@ def cargar_datos_convenios():
     return None
 
 
-# --- MENÚ LATERAL DE NAVEGACIÓN CORREGIDO ---
+# --- MENÚ LATERAL DE NAVEGACIÓN ---
 st.sidebar.title("Navegación")
-
-# AQUÍ ASIGNAMOS LOS NOMBRES CORRECTOS DIRECTAMENTE EN LA LISTA
 modulo_seleccionado = st.sidebar.radio(
     "Seleccione el Módulo:", 
     ["📊 Dashboard Corresponsales", "📄 Buscador de Convenios"]
 )
 st.sidebar.markdown("---")
 
-# Carga de bases de datos
+# Carga de las bases en memoria controlada por Caché
 df = cargar_datos_corresponsales()
 df_convenios = cargar_datos_convenios()
 
@@ -140,37 +138,20 @@ if modulo_seleccionado == "📊 Dashboard Corresponsales":
 
         # --- MÉTRICAS DE ALTO NIVEL CORREGIDAS ---
         m1, m2, m3, m4 = st.columns(4)
+        m1.metric(label="👥 Total Corresponsales", value=f"{len(df_f):,}")
         
-        # 1. Cuadro de Corresponsales Totales
-        m1.metric(
-            label="👥 Total Corresponsales", 
-            value=f"{len(df_f):,}"
-        )
-        
-        # 2. Cuadro de Transacciones Semestrales
         tx_sem = 'Tx Ultimo Semestre' if 'Tx Ultimo Semestre' in df_f.columns else 'Transa'
         tx_sum_val = pd.to_numeric(df_f[tx_sem], errors='coerce').fillna(0).sum()
-        m2.metric(
-            label="📊 TX Total Semestre", 
-            value=f"{tx_sum_val:,.0f}"
-        )
+        m2.metric(label="📊 TX Total Semestre", value=f"{tx_sum_val:,.0f}")
         
-        # 3. Cuadro de Puntos Activos
         activos = len(df_f[df_f['Transa si/no MES'] == 'Si']) if 'Transa si/no MES' in df_f.columns else 0
-        m3.metric(
-            label="✅ Puntos Activos", 
-            value=f"{activos:,}"
-        )
+        m3.metric(label="✅ Puntos Activos", value=f"{activos:,}")
         
-        # 4. Cuadro de Volumen de Dinero de Enero
         dinero_ene = 'Ene 2026 $$' if 'Ene 2026 $$' in df_f.columns else df_f.columns[-1]
         dinero_sum_val = pd.to_numeric(df_f[dinero_ene], errors='coerce').fillna(0).sum()
-        m4.metric(
-            label="💰 Volumen Ene ($$)", 
-            value=f"$ {dinero_sum_val:,.0f}"
-        ))
+        m4.metric(label="💰 Volumen Ene ($$)", value=f"$ {dinero_sum_val:,.0f}")
 
-        # CUERPO GRÁFICO LINEAL
+        # --- CUERPO GRÁFICO (Estructura Lineal Original) ---
         st.subheader("Análisis de Transacciones por Mes (Jul 2025 - Ene 2026)")
         meses_cols = ['Jul 2025 TX', 'Ago 2025 TX', 'Sep 2025 TX', 'Oct 2025 TX', 'Nov 2025 TX', 'Dic 2025 TX', 'Ene 2026 TX']
         meses_existentes = [m for m in meses_cols if m in df_f.columns]
@@ -198,7 +179,7 @@ if modulo_seleccionado == "📊 Dashboard Corresponsales":
         cols_show = [c for c in cols_ranking if c in top_50.columns]
         st.dataframe(top_50[cols_show], use_container_width=True, hide_index=True)
 
-        # BASE DE DATOS INFERIOR
+        # --- SECCIÓN DE BASE DE DATOS COMPLETA REPARADA ---
         st.subheader("📋 Base de Datos Completa")
         txt_busqueda = st.text_input("Buscar por dirección o nombre específico:")
         
@@ -218,6 +199,7 @@ if modulo_seleccionado == "📊 Dashboard Corresponsales":
             st.dataframe(df_view, use_container_width=True, hide_index=True)
         else:
             st.info("🔍 No se encontraron registros que coincidan con la búsqueda.")
+            
     else:
         st.info("📢 Instrucciones: Sube el archivo 'datos_corresponsales.csv' a la raíz de tu repositorio en GitHub para activar el Panel.")
 
