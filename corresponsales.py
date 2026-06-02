@@ -6,7 +6,7 @@ import os
 # --- CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(page_title="Salaz Analytics - Gestión Comercial", layout="wide")
 
-# # 1. --- ENCABEZADO DE MARCA ESTILIZADO ---
+# --- ENCABEZADO DE MARCA ESTILIZADO ---
 st.markdown("""
     <div style="text-align: left;">
         <h2 style="margin-bottom: 0px; color: #3A3A3A; letter-spacing: 2px;">SALAZ ANALYTICS</h2>
@@ -15,45 +15,64 @@ st.markdown("""
 """, unsafe_allow_html=True)
 st.divider()
 
-# --- FUNCIONES DE CARGA DE DATOS ---
-@st.cache_data(ttl=3600)  # Esto guarda el archivo en la memoria caché por una hora para que NO se vuelva a leer en cada clic
-def cargar_convenios_optimizado():
-    archivo_csv = "convenios_activos.csv"
-    if os.path.exists(archivo_csv):
-        # Al ser CSV con caché, la lectura pasará de 60 segundos a menos de 0.5 segundos
-        df_conv = pd.read_csv(archivo_csv, sep=",", encoding="latin-1")
-        return df_conv
-    return None
+# --- PRIMERO SE DEFINEN TODAS LAS FUNCIONES ---
 
 @st.cache_data
-def cargar_convenios():
-    archivo_convenios = "listado-de-convenios-activos-corresponsales mayo 2.xlsx"
-    if os.path.exists(archivo_convenios):
-        # header=1 para saltar el título principal y tomar la fila de columnas reales
-        df_conv = pd.read_excel(archivo_convenios, sheet_name="Convenios", header=1)
-        return df_conv
+def cargar_datos_principales():
+    """
+    Carga los datos históricos y principales de los corresponsales.
+    """
+    # Si tienes el archivo original como CSV:
+    if os.path.exists("datos_corresponsales.csv"):
+        return pd.read_csv("datos_corresponsales.csv")
+    
+    # Si usabas el archivo PUNTOS EJE CAFETERO.xlsx como principal:
+    elif os.path.exists("PUNTOS EJE CAFETERO.xlsx"):
+        return pd.read_excel("PUNTOS EJE CAFETERO.xlsx")
+        
     return None
 
-# --- MENÚ DE NAVEGACIÓN ---
+@st.cache_data(ttl=3600)
+def cargar_convenios_optimizado():
+    """
+    Carga de manera ultra veloz el listado de convenios (procesado desde el CSV optimizado).
+    """
+    archivo_csv = "convenios_activos.csv"
+    if os.path.exists(archivo_csv):
+        # Se lee con una codificación estándar para evitar errores de tildes o eñes
+        return pd.read_csv(archivo_csv, sep=",", encoding="latin-1")
+    return None
+
+
+# --- LUEGO SE CONSTRUIE EL MENÚ LATERAL Y LA LÓGICA ---
+
 st.sidebar.title("Panel de Control")
 opcion_menu = st.sidebar.radio("Seleccione el Tablero:", ["📊 Monitoreo Corresponsales", "📄 Convenios Activos (Mayo 2026)"])
 
 # --- LÓGICA DE VISUALIZACIÓN ---
+
 if opcion_menu == "📊 Monitoreo Corresponsales":
     st.header("📊 Gestión Comercial de Corresponsales")
+    
+    # Aquí llamamos a la función cuando YA está completamente definida arriba
     df_principal = cargar_datos_principales()
+    
     if df_principal is not None:
         st.dataframe(df_principal, use_container_width=True)
-        # Aquí continúa el resto de tu código original (gráficos, filtros, etc.)
+        # --- EN ESTA SECCIÓN DEBES COLOCAR TU CÓDIGO ORIGINAL ---
+        # (Todos tus gráficos de Plotly, tus filtros por municipio, 
+        # y KPI's que ya tenías programados para Marisol deben ir aquí dentro)
+        
     else:
-        st.warning("No se encontró el archivo base de corresponsales.")
+        st.warning("No se encontró el archivo base de corresponsales (datos_corresponsales.csv o PUNTOS EJE CAFETERO.xlsx).")
 
 elif opcion_menu == "📄 Convenios Activos (Mayo 2026)":
     st.header("📄 Consulta de Convenios Activos para Recaudo")
-    df_convenios = cargar_convenios()
+    
+    df_convenios = cargar_convenios_optimizado()
     
     if df_convenios is not None:
-        # Buscador interactivo
+        # Buscador interactivo en tiempo real
         busqueda = st.text_input("🔍 Buscar por Empresa, Convenio o Categoría:")
         
         df_filtrado = df_convenios.copy()
@@ -61,27 +80,28 @@ elif opcion_menu == "📄 Convenios Activos (Mayo 2026)":
             df_filtrado = df_convenios[
                 df_convenios['EMPRESA'].astype(str).str.contains(busqueda, case=False) |
                 df_convenios['CONVENIO'].astype(str).str.contains(busqueda, case=False) |
-                df_convenios['CATEGORIA'].astype(str).str.contains(busqueda, case=False)
+                df_filtrado['CATEGORIA'].astype(str).str.contains(busqueda, case=False)
             ]
         
-        # Métricas rápidas
+        # Indicadores en la parte superior
         c1, c2 = st.columns(2)
-        c1.metric("Total Convenios", len(df_convenios))
-        c2.metric("Resultados Encontrados", len(df_filtrado))
+        c1.metric("Total Convenios en Base", len(df_convenios))
+        c2.metric("Resultados Filtrados", len(df_filtrado))
         
-        # Tabla de datos
+        # Despliegue de la tabla optimizada
         st.dataframe(df_filtrado, use_container_width=True)
         
-        # Gráfico rápido de Convenios por Categoría
+        # Gráfica analítica de distribución
         st.subheader("📊 Distribución de Convenios por Categoría")
         top_categorias = df_filtrado['CATEGORIA'].value_counts().reset_index()
         top_categorias.columns = ['Categoría', 'Cantidad']
+        
         fig = px.bar(top_categorias.head(10), x='Cantidad', y='Categoría', orientation='h', 
                      title="Top 10 Categorías con más Convenios", color='Cantidad', color_continuous_scale='Greens')
         st.plotly_chart(fig, use_container_width=True)
         
     else:
-        st.error("⚠️ El archivo 'listado-de-convenios-activos-corresponsales mayo 2.xlsx' no se encuentra en el repositorio.")
+        st.error("⚠️ El archivo 'convenios_activos.csv' no se encuentra en la raíz de tu repositorio de GitHub.")
 
 # --- PIE DE PÁGINA ---
 st.markdown("---")
