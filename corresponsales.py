@@ -128,56 +128,21 @@ if modulo_seleccionado == "📊 Dashboard Corresponsales":
         m1.metric("Corresponsales", f"{len(df_f):,}")
         
         tx_sem = 'Tx Ultimo Semestre' if 'Tx Ultimo Semestre' in df_f.columns else 'Transa'
-        m2.metric("TX Total Semestre", f"{df_f[tx_sem].sum():,.0f}")
+        
+        # Aseguramos que los valores sean numéricos antes de sumar
+        tx_sum_val = pd.to_numeric(df_f[tx_sem], errors='coerce').fillna(0).sum()
+        m2.metric("TX Total Semestre", f"{tx_sum_val:,.0f}")
         
         activos = len(df_f[df_f['Transa si/no MES'] == 'Si']) if 'Transa si/no MES' in df_f.columns else 0
         m3.metric("Puntos Activos", f"{activos:,}")
         
+        # BLINDAJE DE LA MÉTRICA DE DINERO (Línea 137)
         dinero_ene = 'Ene 2026 $$' if 'Ene 2026 $$' in df_f.columns else df_f.columns[-1]
-        m4.metric("Volumen Ene ($$)", f"$ {df_f[dinero_ene].sum():,.0f}")
-
-        # --- TABS ---
-        tab1, tab2, tab3 = st.tabs(["📈 Tendencia Semestral", "🏆 Ranking Top 50", "🔎 Consulta Detallada"])
-
-        with tab1:
-            st.subheader("Análisis de Transacciones por Mes (Jul 2025 - Ene 2026)")
-            meses_cols = ['Jul 2025 TX', 'Ago 2025 TX', 'Sep 2025 TX', 'Oct 2025 TX', 'Nov 2025 TX', 'Dic 2025 TX', 'Ene 2026 TX']
-            meses_existentes = [m for m in meses_cols if m in df_f.columns]
-            
-            if meses_existentes:
-                data_meses = df_f[meses_existentes].sum().reset_index()
-                data_meses.columns = ['Mes', 'Transacciones']
-                
-                c1, c2 = st.columns([2, 1])
-                with c1:
-                    fig_line = px.line(data_meses, x='Mes', y='Transacciones', markers=True, 
-                                       title="Evolución de la Red", color_discrete_sequence=['#0033a0'])
-                    st.plotly_chart(fig_line, use_container_width=True)
-                with c2:
-                    mun_data = df_f.groupby(col_mun)[tx_sem].sum().nlargest(10).reset_index()
-                    fig_bar = px.bar(mun_data, x=tx_sem, y=col_mun, orientation='h', 
-                                     title="Top 10 Municipios", color_discrete_sequence=['#EBB932'])
-                    st.plotly_chart(fig_bar, use_container_width=True)
-            else:
-                st.warning("No se encontraron las columnas mensuales de transacciones.")
-
-        with tab2:
-            st.subheader("🏆 Top 50 Corresponsales con Mejor Desempeño")
-            top_50 = df.nlargest(50, tx_sem)
-            cols_ranking = [col_esp, col_mun, 'Dirección', tx_sem, 'Ene 2026 TX', 'Estado']
-            cols_show = [c for c in cols_ranking if c in top_50.columns]
-            st.dataframe(top_50[cols_show], use_container_width=True, hide_index=True)
-
-        with tab3:
-            st.subheader("📋 Base de Datos Completa")
-            txt_busqueda = st.text_input("Buscar por dirección o nombre específico:")
-            df_view = df_f.copy()
-            if txt_busqueda:
-                df_view = df_f[df_f.astype(str).apply(lambda x: x.str.contains(txt_busqueda, case=False)).any(axis=1)]
-            st.write(f"Mostrando {len(df_view)} registros")
-            st.dataframe(df_view, use_container_width=True, hide_index=True)
-    else:
-        st.info("📢 Instrucciones: Sube el archivo 'datos_corresponsales.csv' a la raíz de tu repositorio en GitHub para activar el Panel.")
+        
+        # Forzamos la conversión a número, los errores se vuelven 0 para que no rompan la app
+        dinero_sum_val = pd.to_numeric(df_f[dinero_ene], errors='coerce').fillna(0).sum()
+        
+        m4.metric("Volumen Ene ($$)", f"$ {dinero_sum_val:,.0f}")
 
 
 # ==========================================
