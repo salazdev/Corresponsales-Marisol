@@ -98,18 +98,23 @@ def cargar_datos_corresponsales():
 
 
 # 3. CARGA ULTRA-RÁPIDA DE CONVENIOS MEDIANTE CSV
+# 3. CARGA ULTRA-RÁPIDA DE CONVENIOS MEDIANTE CSV (CON DETECCIÓN INTELIGENTE)
 @st.cache_data(ttl=3600)
 def cargar_datos_convenios():
     archivo_csv = "convenios_activos.csv"
     
     if os.path.exists(archivo_csv):
         try:
-            # Forzamos engine='c' y low_memory=False para máxima velocidad de lectura
+            # 1. Intentar lectura estándar con separación por comas
             df_conv = pd.read_csv(archivo_csv, sep=',', encoding='utf-8', on_bad_lines='skip', low_memory=False)
+            
+            # 2. Si detecta una sola columna, reintenta con punto y coma y codificación latina
             if len(df_conv.columns) <= 1:
                 df_conv = pd.read_csv(archivo_csv, sep=';', encoding='latin-1', on_bad_lines='skip', low_memory=False)
             
-            df_conv.columns = [str(c).strip() for c in df_conv.columns]
+            # Limpiar espacios fijos en los nombres de las columnas y pasarlos a MAYÚSCULAS
+            df_conv.columns = [str(c).strip().upper() for c in df_conv.columns]
+            
             return df_conv
         except Exception as e:
             st.error(f"Error al leer convenios_activos.csv: {e}")
@@ -220,7 +225,7 @@ if modulo_seleccionado == "📊 Dashboard Corresponsales":
 
 
 # ==========================================
-# MÓDULO 2: BUSCADOR DE CONVENIOS (OPTIMIZADO)
+# MÓDULO 2: BUSCADOR DE CONVENIOS (DINÁMICO Y FLEXIBLE)
 # ==========================================
 elif modulo_seleccionado == "📄 Buscador de Convenios":
     st.header("📄 Consulta de Convenios Activos para Recaudo")
@@ -232,15 +237,20 @@ elif modulo_seleccionado == "📄 Buscador de Convenios":
         if busqueda:
             busqueda_str = str(busqueda).lower()
             
-            # Identificación dinámica de columnas para el CSV
-            col_emp = 'EMPRESA' if 'EMPRESA' in df_filtrado.columns else df_filtrado.columns[2]
-            col_conv = 'CONVENIO' if 'CONVENIO' in df_filtrado.columns else df_filtrado.columns[0]
-            col_cat = 'CATEGORIA' if 'CATEGORIA' in df_filtrado.columns else df_filtrado.columns[1]
+            # Identificamos las columnas sin importar en qué posición o formato vengan
+            col_emp = [c for c in df_filtrado.columns if 'EMP' in c]
+            col_conv = [c for c in df_filtrado.columns if 'CONV' in c]
+            col_cat = [c for c in df_filtrado.columns if 'CAT' in c]
+            
+            # Asignación de seguridad si no coinciden exactamente
+            c_emp = col_emp[0] if col_emp else df_filtrado.columns[0]
+            c_conv = col_conv[0] if col_conv else df_filtrado.columns[1]
+            c_cat = col_cat[0] if col_cat else df_filtrado.columns[2]
             
             df_filtrado = df_filtrado[
-                df_filtrado[col_emp].astype(str).str.lower().str.contains(busqueda_str) |
-                df_filtrado[col_conv].astype(str).str.lower().str.contains(busqueda_str) |
-                df_filtrado[col_cat].astype(str).str.lower().str.contains(busqueda_str)
+                df_filtrado[c_emp].astype(str).str.lower().str.contains(busqueda_str) |
+                df_filtrado[c_conv].astype(str).str.lower().str.contains(busqueda_str) |
+                df_filtrado[c_cat].astype(str).str.lower().str.contains(busqueda_str)
             ]
         
         c1, c2 = st.columns(2)
