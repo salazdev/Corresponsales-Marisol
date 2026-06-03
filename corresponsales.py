@@ -87,7 +87,7 @@ modulo_seleccionado = st.sidebar.radio(
 # MÓDULO 1: DASHBOARD GENERAL
 # =============================================================================
 if modulo_seleccionado == "📊 Dashboard General":
-    st.title("🏦 Panel de Gestión Comercial Corresponsalía BVB")
+    st.title("Panel de Gestión Comercial Corresponsalía BVB")
     st.divider()
     
     if df_corresponsales is not None:
