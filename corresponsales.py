@@ -224,7 +224,7 @@ if modulo_seleccionado == "📊 Dashboard Corresponsales":
         else:
             st.warning("No se encontraron las columnas mensuales de transacciones.")
 
-        st.subheader("🏆 Top 50 Corresponsales con Mejor Desempeño")
+        st.subheader("Top 50 Corresponsales con Mejor Desempeño")
         top_50 = df.nlargest(50, tx_sem)
         cols_ranking = [col_esp, col_mun, 'Dirección', tx_sem, 'Ene 2026 TX', 'Estado']
         cols_show = [c for c in cols_ranking if c in top_50.columns]
