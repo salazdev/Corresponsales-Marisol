@@ -34,14 +34,35 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# IDENTIDAD VISUAL - SALAZ ANALYTICS
-st.markdown("""
-    <div style="text-align: left;">
-        <h2 style="margin-bottom: 0px; color: #0033a0; letter-spacing: 2px; font-weight: bold;">SALAZ ANALYTICS</h2>
-        <p style="font-size: 14px; color: #EBB932; margin-top: 0px; text-transform: uppercase; font-weight: bold;">Plataforma Inteligente de Gestión</p>
-    </div>
-""", unsafe_allow_html=True)
-st.title("Gestión Integral de Corresponsales")
+# =============================================================================
+# IDENTIDAD VISUAL INTEGRADA - SALAZ ANALYTICS & BRANDING
+# =============================================================================
+# Creamos una estructura de dos columnas para alinear el logo y la descripción
+logoc1, logoc2 = st.columns([1, 4])
+
+with logoc1:
+    # Mostramos el archivo SVG nativo que subiste
+    if os.path.exists("logo-salazanalytics.svg"):
+        st.image("logo-salazanalytics.svg", use_container_width=True)
+
+with logoc2:
+    st.markdown("""
+        <div style="text-align: left; padding-top: 5px;">
+            <h2 style="margin-bottom: 0px; color: #0033a0; letter-spacing: 1px; font-weight: bold; font-size: 28px;">
+                SALAZ ANALYTICS
+            </h2>
+            <p style="font-size: 13px; color: #EBB932; margin-top: 0px; margin-bottom: 5px; text-transform: uppercase; font-weight: bold; letter-spacing: 0.5px;">
+                Plataforma Inteligente de Gestión
+            </p>
+            <a href="https://salazanalytics.com/" target="_blank" style="text-decoration: none;">
+                <span style="background-color: #0033a0; color: white; padding: 4px 10px; border-radius: 4px; font-size: 12px; font-weight: bold; display: inline-block; transition: 0.3s;">
+                    🌐 Visitar sitio web corporativo →
+                </span>
+            </a>
+        </div>
+    """, unsafe_allow_html=True)
+
+st.title("🏦 Gestión Integral de Corresponsalía BVB")
 st.divider()
 
 
