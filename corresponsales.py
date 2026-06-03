@@ -161,7 +161,7 @@ else:
 # =============================================================================
 # 4. MENÚ DE NAVEGACIÓN (BARRA LATERAL)
 # =============================================================================
-st.sidebar.title("📌 Navegación")
+st.sidebar.title("Navegación")
 modulo_seleccionado = st.sidebar.radio(
     "Seleccione el Módulo:", 
     ["📊 Dashboard Corresponsales", "📄 Buscador de Convenios"]
@@ -173,7 +173,7 @@ st.sidebar.markdown("---")
 # MÓDULO 1: DASHBOARD DE CORRESPONSALES
 # =============================================================================
 if modulo_seleccionado == "📊 Dashboard Corresponsales":
-    st.title("🏦 Panel de Gestión Integral de Corresponsalía BVB")
+    st.title("Panel de Gestión Integral de Corresponsalía BVB")
     st.divider()
     
     if df is not None:
@@ -228,7 +228,7 @@ if modulo_seleccionado == "📊 Dashboard Corresponsales":
                                  title="Top 10 Municipios", color_discrete_sequence=['#EBB932'])
                 st.plotly_chart(fig_bar, use_container_width=True)
 
-        st.subheader("🏆 Top 50 Corresponsales")
+        st.subheader("Top 50 Corresponsales")
         top_50 = df.nlargest(50, tx_sem)
         st.dataframe(top_50, use_container_width=True, hide_index=True)
     else:
