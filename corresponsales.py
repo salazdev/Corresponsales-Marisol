@@ -252,24 +252,44 @@ if modulo_seleccionado == "📊 Dashboard Corresponsales":
 
 
 # ==========================================
-# MÓDULO 2: BUSCADOR DE CONVENIOS (DINÁMICO Y FLEXIBLE)
+# MÓDULO 2: BUSCADOR DE CONVENIOS (CON FILTRO POR DEPARTAMENTO)
 # ==========================================
 elif modulo_seleccionado == "📄 Buscador de Convenios":
     st.header("📄 Consulta de Convenios Activos para Recaudo")
     
     if df_convenios is not None:
+        # --- NUEVA INTERVENCIÓN: FILTRO POR DEPARTAMENTO EN LA BARRA LATERAL ---
+        st.sidebar.header("🔍 Filtros de Convenios")
+        
+        # Identificamos si la columna se llama 'DEPARTAMENTO' o similar
+        col_dep_lista = [c for c in df_convenios.columns if 'DEP' in c]
+        c_dep = col_dep_lista[0] if col_dep_lista else None
+        
+        if c_dep:
+            # Extraemos los departamentos únicos, los ordenamos y armamos la lista
+            lista_deps = ["Todos"] + sorted(df_convenios[c_dep].dropna().unique().tolist())
+            dep_sel = st.sidebar.selectbox("Seleccione Departamento / Región:", lista_deps)
+        else:
+            dep_sel = "Todos"
+            st.sidebar.warning("⚠️ No se detectó la columna 'DEPARTAMENTO' en el CSV.")
+            
+        # --- BUSCADOR EN TIEMPO REAL ---
         busqueda = st.text_input("🔍 Buscar convenio en tiempo real (por Empresa, Convenio o Categoría):")
         
+        # Aplicamos los filtros en cascada sobre la base de datos
         df_filtrado = df_convenios.copy()
+        
+        # 1. Filtro por el Departamento seleccionado
+        if dep_sel != "Todos" and c_dep:
+            df_filtrado = df_filtrado[df_filtrado[c_dep] == dep_sel]
+            
+        # 2. Filtro por el texto de búsqueda
         if busqueda:
             busqueda_str = str(busqueda).lower()
-            
-            # Identificamos las columnas sin importar en qué posición o formato vengan
             col_emp = [c for c in df_filtrado.columns if 'EMP' in c]
             col_conv = [c for c in df_filtrado.columns if 'CONV' in c]
             col_cat = [c for c in df_filtrado.columns if 'CAT' in c]
             
-            # Asignación de seguridad si no coinciden exactamente
             c_emp = col_emp[0] if col_emp else df_filtrado.columns[0]
             c_conv = col_conv[0] if col_conv else df_filtrado.columns[1]
             c_cat = col_cat[0] if col_cat else df_filtrado.columns[2]
@@ -280,14 +300,24 @@ elif modulo_seleccionado == "📄 Buscador de Convenios":
                 df_filtrado[c_cat].astype(str).str.lower().str.contains(busqueda_str)
             ]
         
+        # --- TARJETAS DE CONTEO RÁPIDO ---
         c1, c2 = st.columns(2)
-        c1.metric(label="Total Convenios Cargados", value=f"{len(df_convenios):,}")
-        c2.metric(label="Resultados Encontrados", value=f"{len(df_filtrado):,}")
+        c1.metric(label="Total Convenios en este Segmento", value=f"{len(df_filtrado):,}")
+        c2.metric(label="Resultados de Búsqueda", value=f"{len(df_filtrado) if busqueda else 0:,}")
         
-        st.dataframe(df_filtrado, use_container_width=True, hide_index=True)
+        # --- TABLA DETALLADA ---
+        st.subheader("📋 Detalle de Convenios")
+        if not df_filtrado.empty:
+            st.dataframe(df_filtrado, use_container_width=True, hide_index=True)
+        else:
+            st.info("🔍 No se encontraron convenios que coincidan con los filtros aplicados.")
+            
     else:
-        st.error("⚠️ No se encontró el archivo de convenios optimizado. Sube 'convenios_activos.csv' a la raíz de tu GitHub.")
+        st.info("⏳ Esperando el archivo de convenios veloz. Recuerda subir 'convenios_activos.csv' a tu GitHub.")
 
+# PIE DE PÁGINA CORPORATIVO
+st.markdown("---")
+st.caption("SALAZ ANALYTICS | Plataforma Inteligente de Gestión")
 # PIE DE PÁGINA CORPORATIVO
 st.markdown("---")
 st.caption("SALAZ ANALYTICS | Plataforma Inteligente de Gestión")
