@@ -143,7 +143,7 @@ st.sidebar.markdown("---")
 # MÓDULO 1: DASHBOARD DE CORRESPONSALES
 # =============================================================================
 if modulo_seleccionado == "📊 Dashboard Corresponsales":
-    st.title("Panel de Gestión Integral de Corresponsalía BVB")
+    st.title("Panel de Gestión Integral de Corresponsales")
     st.divider()
     
     if df is not None:
@@ -206,16 +206,16 @@ if modulo_seleccionado == "📊 Dashboard Corresponsales":
 
 
 # =============================================================================
-# MÓDULO 2: BUSCADOR DE CONVENIOS (CON FILTRO POR DEPARTAMENTO Y OPTIMIZADO)
+# MÓDULO 2: BUSCADOR DE CONVENIOS (FILTROS FORZADOS EN LA BARRA LATERAL)
 # =============================================================================
 elif modulo_seleccionado == "📄 Buscador de Convenios":
     st.title("📄 Consulta de Convenios Activos para Recaudo")
     st.divider()
     
+    st.sidebar.header("🔍 Filtros de Convenios")
+    
+    # Renderizado forzado del selector de departamentos
     if df_convenios is not None:
-        st.sidebar.header("🔍 Filtros de Convenios")
-        
-        # Búsqueda dinámica de la columna departamento
         col_dep_lista = [c for c in df_convenios.columns if 'DEP' in c]
         c_dep = col_dep_lista[0] if col_dep_lista else None
         
@@ -255,7 +255,6 @@ elif modulo_seleccionado == "📄 Buscador de Convenios":
         
         st.subheader("📋 Detalle de Convenios")
         if not df_filtrado.empty:
-            # Optimización de carga en celulares
             if not busqueda and dep_sel == "Todos":
                 st.info("📱 Optimización móvil activa: Mostrando los primeros 100 registros. Filtra por departamento o palabra clave para desplegar más.")
                 st.dataframe(df_filtrado.head(100), use_container_width=True, hide_index=True)
@@ -263,8 +262,11 @@ elif modulo_seleccionado == "📄 Buscador de Convenios":
                 st.dataframe(df_filtrado, use_container_width=True, hide_index=True)
         else:
             st.info("🔍 No se encontraron convenios que coincidan con los filtros aplicados.")
+            
     else:
-        st.info("⏳ Esperando el archivo de convenios. Recuerda subir 'convenios_activos.csv' a tu GitHub.")
+        # Si el archivo no carga, pintamos un selector vacío provisional en la barra lateral
+        st.sidebar.selectbox("Seleccione Departamento / Región:", ["Esperando archivo csv..."], disabled=True)
+        st.error("⚠️ No se detectó el archivo de convenios. Por favor, revisa en tu repositorio de GitHub que exista el archivo llamado exactamente: 'convenios_activos.csv'")
 
 
 # =============================================================================
