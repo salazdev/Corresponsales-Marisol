@@ -35,38 +35,34 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # =============================================================================
-# LOGO Y MARCA INTEGRADA - SALAZ ANALYTICS
+# LOGO CORPORATIVO E IDENTIDAD VISUAL - SALAZ ANALYTICS
 # =============================================================================
+# Intentamos cargar el logo directamente como imagen nativa
 if os.path.exists("logo-salazanalytics.svg"):
-    # Renderizado en una sola línea: Logo + Enlace de la página web
-    st.markdown(
-        f"""
-        <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 15px;">
-            <img src="data:image/svg+xml;utf8,{open('logo-salazanalytics.svg', 'r', encoding='utf-8').read().replace('#', '%23')}" style="height: 60px;">
-            <div>
-                <h2 style="margin: 0; color: #0033a0; font-weight: bold; font-size: 26px; line-height: 1.1;">SALAZ ANALYTICS</h2>
-                <p style="margin: 0; font-size: 13px; color: #EBB932; text-transform: uppercase; font-weight: bold; letter-spacing: 0.5px;">Plataforma Inteligente de Gestión</p>
-                <a href="https://salazanalytics.com/" target="_blank" style="color: #0033a0; text-decoration: underline; font-size: 14px; font-weight: 600;">
-                    🌐 salazanalytics.com
-                </a>
-            </div>
-        </div>
-        """, 
-        unsafe_allow_html=True
-    )
-else:
-    # Respaldo en texto si el archivo no se encuentra en la raíz
+    # Esto dibuja tu logo exacto en pantalla. Ajusta el 'width' si lo quieres más grande o pequeño.
+    st.image("logo-salazanalytics.svg", width=280)
     st.markdown("""
-        <div style="text-align: left;">
-            <h2 style="margin-bottom: 0px; color: #0033a0; letter-spacing: 2px; font-weight: bold;">SALAZ ANALYTICS</h2>
-            <p style="font-size: 14px; color: #EBB932; margin-top: 0px; margin-bottom: 5px; text-transform: uppercase; font-weight: bold;">Plataforma Inteligente de Gestión</p>
-            <a href="https://salazanalytics.com/" target="_blank" style="color: #0033a0; font-weight: bold; font-size: 14px;">🌐 salazanalytics.com</a>
+        <div style="margin-top: -10px; margin-bottom: 15px; padding-left: 5px;">
+            <p style="margin: 0; font-size: 12px; color: #EBB932; text-transform: uppercase; font-weight: bold; letter-spacing: 0.5px;">
+                Plataforma Inteligente de Gestión
+            </p>
+            <a href="https://salazanalytics.com/" target="_blank" style="color: #0033a0; text-decoration: underline; font-size: 14px; font-weight: 600;">
+                🌐 salazanalytics.com
+            </a>
+        </div>
+    """, unsafe_allow_html=True)
+else:
+    # Respaldo en texto solo por seguridad si el archivo no está en GitHub
+    st.markdown("""
+        <div style="text-align: left; margin-bottom: 15px;">
+            <h2 style="margin-bottom: 0px; color: #0033a0; letter-spacing: 1px; font-weight: bold; font-size: 28px;">SALAZ ANALYTICS</h2>
+            <p style="font-size: 13px; color: #EBB932; margin-top: 0px; margin-bottom: 5px; text-transform: uppercase; font-weight: bold;">Plataforma Inteligente de Gestión</p>
+            <a href="https://salazanalytics.com/" target="_blank" style="color: #0033a0; text-decoration: underline; font-size: 14px; font-weight: 600;">🌐 salazanalytics.com</a>
         </div>
     """, unsafe_allow_html=True)
 
-st.title("Gestión Integral de Corresponsalía BVB")
+st.title("🏦 Gestión Integral de Corresponsalía BVB")
 st.divider()
-
 
 # 2. CARGA DE DATOS ORIGINAL DE CORRESPONSALES (UNIFICANDO CIUDADES REPETIDAS)
 @st.cache_data(ttl=600)
