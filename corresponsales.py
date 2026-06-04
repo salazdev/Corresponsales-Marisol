@@ -89,23 +89,24 @@ def cargar_datos_convenios():
         return None
         
     try:
-        # TRUCO MAESTRO: Leemos solo la fila de encabezados primero para identificar las columnas reales
+        # Leemos los encabezados para mapear las columnas de forma inteligente
         df_header = pd.read_excel(archivo_excel, sheet_name="Convenios", header=1, nrows=5, engine="openpyxl")
         df_header.columns = [str(c).strip().upper() for c in df_header.columns]
         
-        # Buscamos de forma inteligente las columnas vitales para no saturar la memoria
+        # Buscamos las columnas vitales INCLUYENDO EL NIT
         col_conv = [c for c in df_header.columns if 'CONV' in c]
         col_emp = [c for c in df_header.columns if 'EMP' in c]
         col_cat = [c for c in df_header.columns if 'CAT' in c]
         col_dep = [c for c in df_header.columns if 'DEP' in c]
+        col_nit = [c for c in df_header.columns if 'NIT' in c or 'IDENTI' in c] # Busca NIT o Identificación
         
         columnas_a_cargar = []
         if col_conv: columnas_a_cargar.append(col_conv[0])
         if col_emp: columnas_a_cargar.append(col_emp[0])
         if col_cat: columnas_a_cargar.append(col_cat[0])
         if col_dep: columnas_a_cargar.append(col_dep[0])
+        if col_nit: columnas_a_cargar.append(col_nit[0]) # Agregamos el NIT a la carga ligera
         
-        # Si las encuentra, carga solo esas columnas específicas. Si no, carga todo por seguridad.
         if columnas_a_cargar:
             df = pd.read_excel(
                 archivo_excel, 
@@ -120,7 +121,6 @@ def cargar_datos_convenios():
         df.columns = [str(c).strip().upper() for c in df.columns]
         return df
     except Exception as e:
-        # Intento de respaldo si la estructura cambia ligeramente
         try:
             df = pd.read_excel(archivo_excel, header=1, engine="openpyxl")
             df.columns = [str(c).strip().upper() for c in df.columns]
