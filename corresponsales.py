@@ -239,7 +239,7 @@ if modulo_seleccionado == "📊 Dashboard Corresponsales":
 # MÓDULO 2: BUSCADOR DE CONVENIOS (CON SELECTOR DE DEPARTAMENTO INTEGRADO)
 # =============================================================================
 elif modulo_seleccionado == "📄 Buscador de Convenios":
-    st.title("📄 Consulta de Convenios Activos para Recaudo")
+    st.title("Consulta de Convenios Activos para Recaudo")
     st.divider()
     
     st.sidebar.header("🔍 Filtros de Convenios")
@@ -283,7 +283,7 @@ elif modulo_seleccionado == "📄 Buscador de Convenios":
         c1.metric(label="Total Convenios en este Segmento", value=f"{len(df_filtrado):,}")
         c2.metric(label="Resultados Encontrados", value=f"{len(df_filtrado) if busqueda else 0:,}")
         
-        st.subheader("📋 Detalle de Convenios")
+        st.subheader("Detalle de Convenios")
         if not df_filtrado.empty:
             # Paginación para que el móvil no sufra al renderizar
             if not busqueda and dep_sel == "Todos":
