@@ -173,7 +173,7 @@ st.sidebar.markdown("---")
 # MÓDULO 1: DASHBOARD DE CORRESPONSALES
 # =============================================================================
 if modulo_seleccionado == "📊 Dashboard Corresponsales":
-    st.title("Panel de Gestión Integral de Corresponsalía BVB")
+    st.title("Panel de Gestión Integral de Corresponsales Bancarios")
     st.divider()
     
     if df is not None:
