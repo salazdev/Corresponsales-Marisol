@@ -246,10 +246,14 @@ if modulo_seleccionado == "📊 Dashboard Corresponsales":
                 st.plotly_chart(fig_bar, use_container_width=True)
 
         st.subheader("Top 50 Corresponsales")
-        top_50 = df.nlargest(50, tx_sem)
+        
+        # SOLUCIÓN: Convertimos la columna a numérica reemplazando errores por NaN de forma segura
+        df_top = df.copy()
+        df_top[tx_sem] = pd.to_numeric(df_top[tx_sem], errors='coerce').fillna(0)
+        
+        # Ahora sí podemos extraer los 50 más altos sin que falle la app
+        top_50 = df_top.nlargest(50, tx_sem)
         st.dataframe(top_50, use_container_width=True, hide_index=True)
-    else:
-        st.error("📢 No se encontraron las bases de datos. Por favor verifica que 'datos_corresponsales.csv' o 'PUNTOS EJE CAFETERO.xlsx' se encuentren en la raíz de tu repositorio de GitHub.")
 
 
 # =============================================================================
