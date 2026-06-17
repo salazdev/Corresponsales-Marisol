@@ -44,20 +44,39 @@ st.markdown("""
 
 
 # =============================================================================
-# 2. CARGA SEGURA DE BASES DE DATOS (OPTIMIZACIÓN EXTREMA)
+# 2. CARGA SEGURA DE BASES DE DATOS (CON SOPORTE EXCEL PARA EJE CAFETERO)
 # =============================================================================
 @st.cache_data(ttl=600)
 def cargar_datos_corresponsales():
-    archivo = "datos_corresponsales.csv"
-    if not os.path.exists(archivo):
-        return None
-    try:
+    archivo_csv = "datos_corresponsales.csv"
+    archivo_excel = "PUNTOS EJE CAFETERO.xlsx"
+    df = None
+    
+    # 1. Intentar cargar primero el CSV si existe
+    if os.path.exists(archivo_csv):
         try:
-            df = pd.read_csv(archivo, sep=',', engine='python', on_bad_lines='skip')
-            if len(df.columns) <= 1: raise ValueError
+            try:
+                df = pd.read_csv(archivo_csv, sep=',', engine='python', on_bad_lines='skip')
+                if len(df.columns) <= 1: raise ValueError
+            except:
+                df = pd.read_csv(archivo_csv, sep=';', engine='python', on_bad_lines='skip')
         except:
-            df = pd.read_csv(archivo, sep=';', engine='python', on_bad_lines='skip')
+            df = None
+
+    # 2. Si el CSV no existe o falló, intentar cargar el Excel de PUNTOS EJE CAFETERO
+    if df is None and os.path.exists(archivo_excel):
+        try:
+            # Lee la primera pestaña por defecto
+            df = pd.read_excel(archivo_excel, engine="openpyxl")
+        except:
+            df = None
+            
+    # Si no se encuentra ningún archivo válido, retornamos None
+    if df is None:
+        return None
         
+    try:
+        # Limpieza de nombres de columnas
         df.columns = [str(c).strip() for c in df.columns]
         
         # Desduplicar columnas
@@ -72,7 +91,7 @@ def cargar_datos_corresponsales():
                 columnas_limpias.append(col)
         df.columns = columnas_limpias
         
-        # Estandarizar ciudades
+        # Estandarizar ciudades (Mapea 'Ciudad' o la segunda columna)
         col_mun = 'Ciudad' if 'Ciudad' in df.columns else df.columns[1]
         if col_mun in df.columns:
             df[col_mun] = df[col_mun].astype(str).str.strip().str.upper()
@@ -89,23 +108,21 @@ def cargar_datos_convenios():
         return None
         
     try:
-        # Leemos los encabezados para mapear las columnas de forma inteligente
         df_header = pd.read_excel(archivo_excel, sheet_name="Convenios", header=1, nrows=5, engine="openpyxl")
         df_header.columns = [str(c).strip().upper() for c in df_header.columns]
         
-        # Buscamos las columnas vitales INCLUYENDO EL NIT
         col_conv = [c for c in df_header.columns if 'CONV' in c]
         col_emp = [c for c in df_header.columns if 'EMP' in c]
         col_cat = [c for c in df_header.columns if 'CAT' in c]
         col_dep = [c for c in df_header.columns if 'DEP' in c]
-        col_nit = [c for c in df_header.columns if 'NIT' in c or 'IDENTI' in c] # Busca NIT o Identificación
+        col_nit = [c for c in df_header.columns if 'NIT' in c or 'IDENTI' in c]
         
         columnas_a_cargar = []
         if col_conv: columnas_a_cargar.append(col_conv[0])
         if col_emp: columnas_a_cargar.append(col_emp[0])
         if col_cat: columnas_a_cargar.append(col_cat[0])
         if col_dep: columnas_a_cargar.append(col_dep[0])
-        if col_nit: columnas_a_cargar.append(col_nit[0]) # Agregamos el NIT a la carga ligera
+        if col_nit: columnas_a_cargar.append(col_nit[0])
         
         if columnas_a_cargar:
             df = pd.read_excel(
@@ -141,7 +158,7 @@ if os.path.exists("logo-salazanalytics.svg"):
     st.markdown("""
         <div style="margin-top: -10px; margin-bottom: 15px; padding-left: 5px;">
             <p style="margin: 0; font-size: 12px; color: #EBB932; text-transform: uppercase; font-weight: bold; letter-spacing: 0.5px;">
-                Plataforma Inteligente de Gestión
+                SALAZ ANALYTICS Plataforma Inteligente de Gestión
             </p>
             <a href="https://salazanalytics.com/" target="_blank" style="color: #0033a0; text-decoration: underline; font-size: 14px; font-weight: 600;">
                 🌐 salazanalytics.com
@@ -152,7 +169,7 @@ else:
     st.markdown("""
         <div style="text-align: left; margin-bottom: 15px;">
             <h2 style="margin-bottom: 0px; color: #0033a0; letter-spacing: 1px; font-weight: bold; font-size: 28px;">SALAZ ANALYTICS</h2>
-            <p style="font-size: 13px; color: #EBB932; margin-top: 0px; margin-bottom: 5px; text-transform: uppercase; font-weight: bold;">Plataforma Inteligente de Gestión</p>
+            <p style="font-size: 13px; color: #EBB932; margin-top: 0px; margin-bottom: 5px; text-transform: uppercase; font-weight: bold;">SALAZ ANALYTICS Plataforma Inteligente de Gestión</p>
             <a href="https://salazanalytics.com/" target="_blank" style="color: #0033a0; text-decoration: underline; font-size: 14px; font-weight: 600;">🌐 salazanalytics.com</a>
         </div>
     """, unsafe_allow_html=True)
@@ -232,7 +249,7 @@ if modulo_seleccionado == "📊 Dashboard Corresponsales":
         top_50 = df.nlargest(50, tx_sem)
         st.dataframe(top_50, use_container_width=True, hide_index=True)
     else:
-        st.info("📢 Por favor verifica que el archivo 'datos_corresponsales.csv' se encuentre en tu repositorio de GitHub.")
+        st.error("📢 No se encontraron las bases de datos. Por favor verifica que 'datos_corresponsales.csv' o 'PUNTOS EJE CAFETERO.xlsx' se encuentren en la raíz de tu repositorio de GitHub.")
 
 
 # =============================================================================
@@ -245,7 +262,6 @@ elif modulo_seleccionado == "📄 Buscador de Convenios":
     st.sidebar.header("🔍 Filtros de Convenios")
     
     if df_convenios is not None:
-        # Buscamos la columna de departamento
         col_dep_lista = [c for c in df_convenios.columns if 'DEP' in c]
         c_dep = col_dep_lista[0] if col_dep_lista else None
         
@@ -285,7 +301,6 @@ elif modulo_seleccionado == "📄 Buscador de Convenios":
         
         st.subheader("Detalle de Convenios")
         if not df_filtrado.empty:
-            # Paginación para que el móvil no sufra al renderizar
             if not busqueda and dep_sel == "Todos":
                 st.info("📱 Optimización móvil activa: Mostrando los primeros 100 registros. Filtra por departamento o palabra clave para desplegar más.")
                 st.dataframe(df_filtrado.head(100), use_container_width=True, hide_index=True)
@@ -300,4 +315,4 @@ elif modulo_seleccionado == "📄 Buscador de Convenios":
 
 # PIE DE PÁGINA CORPORATIVO
 st.markdown("---")
-st.caption("SALAZ ANALYTICS | Plataforma Inteligente de Gestión")
+st.caption("SALAZ ANALYTICS Plataforma Inteligente de Gestión")
