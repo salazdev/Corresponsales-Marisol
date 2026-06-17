@@ -251,9 +251,27 @@ if modulo_seleccionado == "📊 Dashboard Corresponsales":
         df_top = df.copy()
         df_top[tx_sem] = pd.to_numeric(df_top[tx_sem], errors='coerce').fillna(0)
         
-        # Ahora sí podemos extraer los 50 más altos sin que falle la app
-        top_50 = df_top.nlargest(50, tx_sem)
-        st.dataframe(top_50, use_container_width=True, hide_index=True)
+        # --- TABLA DE DETALLE DINÁMICA ---
+        if ciu_sel != "Todos":
+            st.subheader(f"Corresponsales en {ciu_sel.title()}")
+        else:
+            st.subheader("Top 50 Corresponsales de la Red")
+        
+        # 1. Copiamos los datos ya filtrados por Especialista y Municipio
+        df_top = df_f.copy()
+        
+        # 2. Aseguramos que la columna de transacciones sea numérica para poder ordenar
+        df_top[tx_sem] = pd.to_numeric(df_top[tx_sem], errors='coerce').fillna(0)
+        
+        # 3. Si seleccionó un municipio específico, calculamos cuántos registros mostrar
+        # (Si hay menos de 50 puntos en ese municipio, los muestra todos de una vez)
+        limite_filas = min(50, len(df_top))
+        
+        if limite_filas > 0:
+            top_dinamico = df_top.nlargest(limite_filas, tx_sem)
+            st.dataframe(top_dinamico, use_container_width=True, hide_index=True)
+        else:
+            st.info("🔍 No hay registros disponibles para los filtros seleccionados.")
 
 
 # =============================================================================
